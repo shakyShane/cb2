@@ -1,0 +1,21 @@
+tasks:
+
+  # Example of accepting a sequence of strings
+  build:
+    - ["@client", "@server"]
+    - "@storybook"
+
+  # Example of accepting a map
+  docker:
+    command: docker run -it --init pwa -p 8080:80
+    env:
+      - NODE_ENV=production
+
+  # single-line commands
+  client: rimraf dist && webpack --color --env.mode production
+  storybook: rimraf storybook-static && build-storybook
+
+  # Multi-line commands where newlines are preserved
+  server: |
+    rimraf server/dist
+    webpack --config webpack.server.js --color --env.mode production

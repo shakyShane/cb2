@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "cb2",
+    "cb2_core",
+]
