@@ -27,6 +27,6 @@ fn main() {
         ],
     };
 
-    let g2 = Task::select(yaml, vec!["build", "other", "other2"]);
+    let g2 = Task::select(yaml, vec!["build", "other", "other4"]);
     //    println!("{:#?}", g);
 }
