@@ -29,7 +29,8 @@ pub enum Task {
 
 #[derive(Debug)]
 pub enum TaskError {
-    Invalid,
+    Invalid(Vec<Lookup>),
+    Serde(serde_yaml::Error),
 }
 
 #[derive(Debug)]
@@ -39,24 +40,26 @@ pub enum Lookup {
 }
 
 impl Task {
-    pub fn select(input: &str, names: Vec<&str>) -> Result<Task, TaskError> {
+    pub fn select(input: &str, names: Vec<&str>) -> Result<Vec<Lookup>, TaskError> {
         let parsed_yml: Result<Input, serde_yaml::Error> = serde_yaml::from_str(input);
         match parsed_yml {
+            Err(e) => Err(TaskError::Serde(e)),
             Ok(input) => {
-                let valid = names
+                let parsed = names
                     .iter()
                     .map(|n| validate(&input, n, n, vec![]))
                     .collect::<Vec<Lookup>>();
-                println!("valid={:#?}", valid);
+
+                let all_valid = parsed.iter().all(|lookup| {
+                    match lookup {
+                        Lookup::Found {..} => true,
+                        Lookup::NotFound {..} => false,
+                    }
+                });
+
+                if all_valid { Ok(parsed) } else { Err(TaskError::Invalid(parsed)) }
             }
-            Err(e) => {
-                println!("{:#?}", input);
-            }
-        };
-        Ok(Task::Item {
-            id: 0,
-            command: "ls".into(),
-        })
+        }
     }
 }
 

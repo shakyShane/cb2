@@ -12,21 +12,21 @@ fn main() {
         other2: "@other"
     "#;
 
-    let g = Task::Group {
-        id: 0,
-        run_mode: RunMode::Series,
-        items: vec![
-            Task::Item {
-                id: 1,
-                command: "ls".to_string(),
-            },
-            Task::Item {
-                id: 2,
-                command: "sleep 1".to_string(),
-            },
-        ],
-    };
+//    let g = Task::Group {
+//        id: 0,
+//        run_mode: RunMode::Series,
+//        items: vec![
+//            Task::Item {
+//                id: 1,
+//                command: "ls".to_string(),
+//            },
+//            Task::Item {
+//                id: 2,
+//                command: "sleep 1".to_string(),
+//            },
+//        ],
+//    };
 
-    let g2 = Task::select(yaml, vec!["build", "other", "other4"]);
-    //    println!("{:#?}", g);
+    let g2 = Task::select(yaml, vec![]);
+    println!("{:#?}", g2);
 }
