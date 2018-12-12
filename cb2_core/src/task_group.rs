@@ -80,13 +80,15 @@ pub fn validate(input: &Input, target: &str, name: &str, prev_path: Vec<PathItem
                 TaskDef::CmdString(s) => {
                     validate_string(input, target, name, s.to_string(), next_path)
                 }
-//                TaskDef::TaskObj(obj) => {
-//
-//                }
+                TaskDef::TaskObj {..} => {
+                    Lookup::Found {
+                        target: target.to_string(),
+                        path: next_path,
+                    }
+                }
                 TaskDef::TaskSeq(seq) => {
                     validate_seq(input, target, name, seq, next_path)
                 }
-                _ => unimplemented!()
             }
         },
     )
@@ -100,10 +102,15 @@ fn validate_seq(input: &Input, target: &str, name: &str, seq: &Vec<TaskDef>, pat
             TaskDef::CmdString(s) => {
                 validate_string(input, target, name, s.to_string(), next_path)
             }
-//            TaskDef::TaskSeq(seq) => {
-//                validate_seq(input, seq, next_path)
-//            },
-            _ => unimplemented!()
+            TaskDef::TaskSeq(seq) => {
+                validate_seq(input, target, name, seq, next_path)
+            },
+            TaskDef::TaskObj {..} => {
+                Lookup::Found {
+                    target: target.to_string(),
+                    path: next_path,
+                }
+            }
         }
     }).collect::<Vec<Lookup>>();
 
@@ -130,7 +137,7 @@ fn validate_string(input: &Input, target: &str, name: &str, s: String, path: Vec
         _ => {
             Lookup::Found {
                 target: target.to_string(),
-                path: path.clone(),
+                path,
             }
         }
     }
