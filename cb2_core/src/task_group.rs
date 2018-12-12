@@ -2,6 +2,12 @@ use crate::input::Input;
 use crate::input::TaskDef;
 use from_file::FromFile;
 
+#[derive(Debug, Clone)]
+pub enum PathItem {
+    String(String),
+    Index(usize)
+}
+
 #[derive(Debug)]
 pub enum RunMode {
     Series,
@@ -28,8 +34,8 @@ pub enum TaskError {
 
 #[derive(Debug)]
 pub enum Lookup {
-    Found { name: String, path: Vec<String> },
-    NotFound { name: String, path: Vec<String> },
+    Found { name: String, path: Vec<PathItem> },
+    NotFound { name: String, path: Vec<PathItem> },
 }
 
 impl Task {
@@ -54,11 +60,11 @@ impl Task {
     }
 }
 
-pub fn validate(input: &Input, name: &str, prev_path: Vec<String>) -> Lookup {
+pub fn validate(input: &Input, name: &str, prev_path: Vec<PathItem>) -> Lookup {
     input.tasks.get(name).map_or_else(
         || {
             let mut next_path = prev_path.clone();
-            next_path.push(name.to_string());
+            next_path.push(PathItem::String(name.to_string()));
             Lookup::NotFound {
                 name: name.to_string(),
                 path: next_path,
@@ -66,30 +72,63 @@ pub fn validate(input: &Input, name: &str, prev_path: Vec<String>) -> Lookup {
         },
         |item| {
             let mut next_path = prev_path.clone();
-            next_path.push(name.to_string());
+            next_path.push(PathItem::String(name.to_string()));
             match item {
                 TaskDef::CmdString(s) => {
-                    match &s[0..1] {
-                        "@" => validate(input, &s[1..s.len()], next_path),
-                        _ => {
-                            Lookup::Found {
-                                name: name.to_string(),
-                                path: next_path,
-                            }
-                        }
-                    }
+                    validate_string(input, name.to_string(), s.to_string(), next_path)
                 }
 //                TaskDef::TaskObj(obj) => {
 //
 //                }
-                TaskDef::TaskSeq(obj) => {
-                    Lookup::Found {
-                        name: name.to_string(),
-                        path: next_path,
-                    }
+                TaskDef::TaskSeq(seq) => {
+                    validate_seq(input, name.to_string(), seq, next_path)
                 }
                 _ => unimplemented!()
             }
         },
     )
+}
+
+fn validate_seq(input: &Input, name: String, seq: &Vec<TaskDef>, path: Vec<PathItem>) -> Lookup {
+    let out = seq.iter().enumerate().map(|(index, seq_item)| {
+        let mut next_path = path.clone();
+        next_path.push(PathItem::Index(index));
+        match seq_item {
+            TaskDef::CmdString(s) => {
+                validate_string(input, index.to_string(), s.to_string(), next_path)
+            }
+//            TaskDef::TaskSeq(seq) => {
+//                validate_seq(input, seq, next_path)
+//            },
+            _ => unimplemented!()
+        }
+    }).collect::<Vec<Lookup>>();
+
+    let first_fail = out.into_iter().find(|lookup| {
+        match lookup {
+            Lookup::Found {..} => false,
+            Lookup::NotFound {..} => true,
+        }
+    });
+
+    if first_fail.is_some() {
+        first_fail.unwrap()
+    } else {
+        Lookup::Found {
+            name: name.to_string(),
+            path,
+        }
+    }
+}
+
+fn validate_string(input: &Input, name: String, s: String, path: Vec<PathItem>) -> Lookup {
+    match &s[0..1] {
+        "@" => validate(input, &s[1..s.len()], path),
+        _ => {
+            Lookup::Found {
+                name: name.to_string(),
+                path: path.clone(),
+            }
+        }
+    }
 }

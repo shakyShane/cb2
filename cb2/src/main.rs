@@ -3,11 +3,11 @@ use cb2_core::task_group::{RunMode, Task};
 fn main() {
     let yaml = r#"
     tasks:
-#        build:
-#            - ls
-#            - sleep 1
-#            - "@other"
-#            - "@other2"
+        build:
+           - ls
+           - sleep 1
+           - "@other"
+           - "@other3"
         other: ls -l
         other2: "@other"
     "#;
