@@ -27,15 +27,13 @@ pub enum TaskError {
 }
 
 #[derive(Debug)]
-pub struct Lookup<'a> {
-    input: String,
-    result: Option<&'a TaskDef>,
-}
-
-#[derive(Debug)]
-pub enum LookupResult {
-    Found,
-    NotFound
+pub enum Lookup {
+    Found {
+        name: String
+    },
+    NotFound {
+        name: String
+    }
 }
 
 impl Task {
@@ -43,8 +41,8 @@ impl Task {
         let parsed_yml: Result<Input, serde_yaml::Error> = serde_yaml::from_str(input);
         match parsed_yml {
             Ok(input) => {
-                println!("-> results   || {:#?}", results);
-                println!("-> all valid || {:#?}", valid);
+                let valid = names.iter().map(|n| validate(&input, n)).collect::<Vec<Lookup>>();
+                println!("valid={:?}", valid);
             }
             Err(e) => {
                 println!("{:#?}", input);
@@ -55,4 +53,12 @@ impl Task {
             command: "ls".into()
         })
     }
+}
+
+pub fn validate(input: &Input, name: &str) -> Lookup {
+    input.tasks.get(name).map_or(Lookup::NotFound {name: name.to_string()}, |item| {
+        Lookup::Found {
+            name: name.to_string()
+        }
+    })
 }
