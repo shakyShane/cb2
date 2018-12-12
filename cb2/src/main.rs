@@ -1,4 +1,4 @@
-use cb2_core::task_group::{RunMode, Task};
+use cb2_core::task_lookup::{select};
 
 fn main() {
 
@@ -6,10 +6,10 @@ fn main() {
     tasks:
         build:
            - ls dist
-           - ["@other", "@builsd:client"]
+           - ["@other", "@build:client"]
            - command: ls -la
         other: ls -l
-        other2: "@other"
+        other2: ["@other", "@sleep 2"]
         swagger:
           command: swagger is here
         build:client: |
@@ -32,6 +32,10 @@ fn main() {
 //        ],
 //    };
 
-    let g2 = Task::select(yaml, vec!["build", "other", "swagger"]);
-    println!("{:#?}", g2);
+    let g2 = select(yaml, vec!["other2"]);
+
+    match g2 {
+        Err(e) => println!("{}", e),
+        Ok(lookups) => println!("all good")
+    }
 }
