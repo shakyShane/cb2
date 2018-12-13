@@ -1,4 +1,7 @@
 use cb2_core::task_lookup::select;
+use cb2_core::input::Input;
+use cb2_core::task_lookup::TaskError;
+use cb2_core::task_lookup::TaskLookup;
 
 fn main() {
     let yaml: &str = r#"
@@ -31,9 +34,11 @@ fn main() {
     //        ],
     //    };
 
-    let g2 = select(yaml, vec!["other2"]);
+    let lookups = Input::from_str(yaml)
+        .map_err(TaskError::Serde)
+        .and_then(|input| select(&input, vec!["swagger"]));
 
-    match g2 {
+    match lookups {
         Err(e) => println!("{}", e),
         Ok(_lookups) => println!("all good"),
     }

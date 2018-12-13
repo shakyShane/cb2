@@ -6,6 +6,12 @@ pub struct Input {
     pub tasks: HashMap<String, TaskDef>,
 }
 
+impl Input {
+    pub fn from_str(input: &str) -> Result<Input, serde_yaml::Error> {
+        serde_yaml::from_str(input)
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum TaskDef {

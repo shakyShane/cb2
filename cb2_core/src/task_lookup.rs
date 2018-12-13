@@ -54,27 +54,21 @@ impl fmt::Display for TaskError {
 ///
 /// Select a sequence of tasks based on the YAML input string
 ///
-pub fn select(input: &str, names: Vec<&str>) -> Result<Vec<TaskLookup>, TaskError> {
-    let parsed_yml: Result<Input, serde_yaml::Error> = serde_yaml::from_str(input);
-    match parsed_yml {
-        Err(e) => Err(TaskError::Serde(e)),
-        Ok(input) => {
-            let parsed = names
-                .iter()
-                .map(|n| validate(&input, n, n, vec![]))
-                .collect::<Vec<TaskLookup>>();
+pub fn select(input: &Input, names: Vec<&str>) -> Result<Vec<TaskLookup>, TaskError> {
+    let parsed = names
+        .iter()
+        .map(|n| validate(&input, n, n, vec![]))
+        .collect::<Vec<TaskLookup>>();
 
-            let all_valid = parsed.iter().all(|lookup| match lookup {
-                TaskLookup::Found { .. } => true,
-                TaskLookup::NotFound { .. } => false,
-            });
+    let all_valid = parsed.iter().all(|lookup| match lookup {
+        TaskLookup::Found { .. } => true,
+        TaskLookup::NotFound { .. } => false,
+    });
 
-            if all_valid {
-                Ok(parsed)
-            } else {
-                Err(TaskError::Invalid(parsed))
-            }
-        }
+    if all_valid {
+        Ok(parsed)
+    } else {
+        Err(TaskError::Invalid(parsed))
     }
 }
 
