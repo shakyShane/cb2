@@ -1,6 +1,7 @@
 use cb2_core::task_lookup::select;
 use cb2_core::input::Input;
-use cb2_core::task_lookup::TaskError;
+use cb2_core::task_lookup::{TaskError};
+use cb2_core::task::{Task};
 use cb2_core::task_lookup::TaskLookup;
 
 fn main() {
@@ -19,27 +20,15 @@ fn main() {
           webpack --progress -p
     "#;
 
-    //    let g = Task::Group {
-    //        id: 0,
-    //        run_mode: RunMode::Series,
-    //        items: vec![
-    //            Task::Item {
-    //                id: 1,
-    //                command: "ls".to_string(),
-    //            },
-    //            Task::Item {
-    //                id: 2,
-    //                command: "sleep 1".to_string(),
-    //            },
-    //        ],
-    //    };
-
-    let lookups = Input::from_str(yaml)
-        .map_err(TaskError::Serde)
-        .and_then(|input| select(&input, vec!["swagger"]));
-
-    match lookups {
+    match run(yaml, vec!["build"]) {
+        Ok((input, lookups)) => println!("All good, lookups = {:#?}", input),
         Err(e) => println!("{}", e),
-        Ok(_lookups) => println!("all good"),
     }
+}
+
+fn run(input: &str, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
+    let input = Input::from_str(input).map_err(TaskError::Serde)?;
+    let lookups = select(&input, &names)?;
+    let _task_tree = Task::generate(&input, &names);
+    Ok((input, lookups))
 }
