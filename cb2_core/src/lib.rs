@@ -11,3 +11,4 @@ extern crate from_file;
 pub mod input;
 pub mod task;
 pub mod task_lookup;
+pub mod task_lookup_error;

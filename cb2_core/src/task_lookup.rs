@@ -1,6 +1,7 @@
 use crate::input::Input;
 use crate::input::TaskDef;
 use std::fmt;
+use crate::task_lookup_error;
 
 #[derive(Debug)]
 pub enum TaskError {
@@ -37,15 +38,7 @@ impl fmt::Display for TaskError {
                     .iter()
                     .map(|l| match l {
                         TaskLookup::NotFound { target, path } => {
-                            if path.len() > 1 {
-                                format!(
-                                    "Lookup for task: `{}` failed.\n  Failed lookup path: {}",
-                                    target,
-                                    print_path(path)
-                                )
-                            } else {
-                                format!("Lookup for task: `{}` failed.", target)
-                            }
+                            task_lookup_error::print(target, path)
                         }
                         _ => String::new(),
                     })
@@ -56,13 +49,6 @@ impl fmt::Display for TaskError {
             TaskError::Serde(e) => write!(f, "{}", e),
         }
     }
-}
-
-fn print_path(path: &Vec<PathItem>) -> String {
-    path.iter()
-        .map(|p| p.to_string())
-        .collect::<Vec<String>>()
-        .join(" -> ")
 }
 
 ///
