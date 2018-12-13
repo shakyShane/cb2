@@ -1,9 +1,9 @@
-use cb2_core::task_lookup::select;
 use cb2_core::input::Input;
-use cb2_core::task_lookup::{TaskError};
-use cb2_core::task::{Task};
-use cb2_core::task_lookup::TaskLookup;
 use cb2_core::runner;
+use cb2_core::task::Task;
+use cb2_core::task_lookup::select;
+use cb2_core::task_lookup::TaskError;
+use cb2_core::task_lookup::TaskLookup;
 
 fn main() {
     let yaml: &str = r#"

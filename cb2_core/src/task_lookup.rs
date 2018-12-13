@@ -1,7 +1,7 @@
 use crate::input::Input;
 use crate::input::TaskDef;
-use std::fmt;
 use crate::task_lookup_error;
+use std::fmt;
 
 #[derive(Debug)]
 pub enum TaskError {
@@ -86,9 +86,7 @@ pub fn validate(input: &Input, target: &str, name: &str, prev_path: Vec<PathItem
             let mut next_path = prev_path.clone();
             next_path.push(PathItem::String(name.to_string()));
             match item {
-                TaskDef::CmdString(s) => {
-                    validate_string(input, target, s.to_string(), next_path)
-                }
+                TaskDef::CmdString(s) => validate_string(input, target, s.to_string(), next_path),
                 TaskDef::TaskObj { .. } => TaskLookup::Found {
                     target: target.to_string(),
                     path: next_path,
@@ -113,12 +111,7 @@ fn validate_seq(
             let mut next_path = path.clone();
             next_path.push(PathItem::Index(index));
             match seq_item {
-                TaskDef::CmdString(s) => validate_string(
-                    input,
-                    target,
-                    s.to_string(),
-                    next_path
-                ),
+                TaskDef::CmdString(s) => validate_string(input, target, s.to_string(), next_path),
                 TaskDef::TaskSeq(seq) => validate_seq(input, target, name, seq, next_path),
                 TaskDef::TaskObj { .. } => TaskLookup::Found {
                     target: target.to_string(),
