@@ -8,9 +8,8 @@ fn main() {
     let yaml: &str = r#"
     tasks:
         build:
-           - ls dist
-           - ["@other", "@build:client"]
-           - command: ls -la
+           - ls
+           - command: sleep 1
         other: ls -l
         other2: ["@other", "@sleep 2"]
         swagger:
@@ -21,14 +20,14 @@ fn main() {
     "#;
 
     match run(yaml, vec!["build"]) {
-        Ok((input, lookups)) => println!("All good, lookups = {:#?}", input),
+        Ok((_input, _lookups, _task)) => println!("All good, lookups = {:#?}", _input),
         Err(e) => println!("{}", e),
     }
 }
 
-fn run(input: &str, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
+fn run(input: &str, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>, Task), TaskError> {
     let input = Input::from_str(input).map_err(TaskError::Serde)?;
     let lookups = select(&input, &names)?;
-    let _task_tree = Task::generate(&input, &names);
-    Ok((input, lookups))
+    let task_tree = Task::generate(&input, &names);
+    Ok((input, lookups, task_tree))
 }
