@@ -9,5 +9,5 @@ extern crate from_file_derive;
 extern crate from_file;
 
 pub mod input;
-pub mod task_lookup;
 pub mod task;
+pub mod task_lookup;

@@ -1,5 +1,5 @@
-use crate::input::TaskDef;
 use crate::input::Input;
+use crate::input::TaskDef;
 use std::fmt;
 
 #[derive(Debug)]
@@ -17,14 +17,14 @@ pub enum TaskLookup {
 #[derive(Debug, Clone)]
 pub enum PathItem {
     String(String),
-    Index(usize)
+    Index(usize),
 }
 
 impl fmt::Display for PathItem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            PathItem::String(s) => write!(f, "{}", s),
-            PathItem::Index(s) => write!(f, "[{}]", s),
+            PathItem::String(s) => write!(f, "`{}`", s),
+            PathItem::Index(s) => write!(f, "[index: {}]", s),
         }
     }
 }
@@ -33,29 +33,36 @@ impl fmt::Display for TaskError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TaskError::Invalid(lookups) => {
-                let output = lookups.iter().map(|l| {
-                    match l {
+                let output = lookups
+                    .iter()
+                    .map(|l| match l {
                         TaskLookup::NotFound { target, path } => {
                             if path.len() > 1 {
-                                format!("Lookup for task: `{}` failed.\n  path: {}", target, print_path(path))
+                                format!(
+                                    "Lookup for task: `{}` failed.\n  Failed lookup path: {}",
+                                    target,
+                                    print_path(path)
+                                )
                             } else {
                                 format!("Lookup for task: `{}` failed.", target)
                             }
                         }
-                        _ => String::new()
-                    }
-                }).collect::<Vec<String>>().join("\n");
+                        _ => String::new(),
+                    })
+                    .collect::<Vec<String>>()
+                    .join("\n");
                 write!(f, "{}", output)
             }
-            TaskError::Serde(e) => {
-                write!(f, "{}", e)
-            }
+            TaskError::Serde(e) => write!(f, "{}", e),
         }
     }
 }
 
 fn print_path(path: &Vec<PathItem>) -> String {
-    path.iter().map(|p| p.to_string()).collect::<Vec<String>>().join(", ")
+    path.iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<String>>()
+        .join(" -> ")
 }
 
 ///
@@ -71,14 +78,16 @@ pub fn select(input: &str, names: Vec<&str>) -> Result<Vec<TaskLookup>, TaskErro
                 .map(|n| validate(&input, n, n, vec![]))
                 .collect::<Vec<TaskLookup>>();
 
-            let all_valid = parsed.iter().all(|lookup| {
-                match lookup {
-                    TaskLookup::Found {..} => true,
-                    TaskLookup::NotFound {..} => false,
-                }
+            let all_valid = parsed.iter().all(|lookup| match lookup {
+                TaskLookup::Found { .. } => true,
+                TaskLookup::NotFound { .. } => false,
             });
 
-            if all_valid { Ok(parsed) } else { Err(TaskError::Invalid(parsed)) }
+            if all_valid {
+                Ok(parsed)
+            } else {
+                Err(TaskError::Invalid(parsed))
+            }
         }
     }
 }
@@ -98,47 +107,52 @@ pub fn validate(input: &Input, target: &str, name: &str, prev_path: Vec<PathItem
             next_path.push(PathItem::String(name.to_string()));
             match item {
                 TaskDef::CmdString(s) => {
-                    validate_string(input, target, name, s.to_string(), next_path)
+                    validate_string(input, target, name, s.to_string(), next_path, None)
                 }
-                TaskDef::TaskObj {..} => {
-                    TaskLookup::Found {
-                        target: target.to_string(),
-                        path: next_path,
-                    }
-                }
-                TaskDef::TaskSeq(seq) => {
-                    validate_seq(input, target, name, seq, next_path)
-                }
+                TaskDef::TaskObj { .. } => TaskLookup::Found {
+                    target: target.to_string(),
+                    path: next_path,
+                },
+                TaskDef::TaskSeq(seq) => validate_seq(input, target, name, seq, next_path),
             }
         },
     )
 }
 
-fn validate_seq(input: &Input, target: &str, name: &str, seq: &Vec<TaskDef>, path: Vec<PathItem>) -> TaskLookup {
-    let out = seq.iter().enumerate().map(|(index, seq_item)| {
-        let mut next_path = path.clone();
-        next_path.push(PathItem::Index(index));
-        match seq_item {
-            TaskDef::CmdString(s) => {
-                validate_string(input, target, name, s.to_string(), next_path)
-            }
-            TaskDef::TaskSeq(seq) => {
-                validate_seq(input, target, name, seq, next_path)
-            },
-            TaskDef::TaskObj {..} => {
-                TaskLookup::Found {
+fn validate_seq(
+    input: &Input,
+    target: &str,
+    name: &str,
+    seq: &Vec<TaskDef>,
+    path: Vec<PathItem>,
+) -> TaskLookup {
+    let out = seq
+        .iter()
+        .enumerate()
+        .map(|(index, seq_item)| {
+            let mut next_path = path.clone();
+            next_path.push(PathItem::Index(index));
+            match seq_item {
+                TaskDef::CmdString(s) => validate_string(
+                    input,
+                    target,
+                    name,
+                    s.to_string(),
+                    next_path,
+                    Some(PathItem::Index(index)),
+                ),
+                TaskDef::TaskSeq(seq) => validate_seq(input, target, name, seq, next_path),
+                TaskDef::TaskObj { .. } => TaskLookup::Found {
                     target: target.to_string(),
                     path: next_path,
-                }
+                },
             }
-        }
-    }).collect::<Vec<TaskLookup>>();
+        })
+        .collect::<Vec<TaskLookup>>();
 
-    let first_fail = out.into_iter().find(|lookup| {
-        match lookup {
-            TaskLookup::Found {..} => false,
-            TaskLookup::NotFound {..} => true,
-        }
+    let first_fail = out.into_iter().find(|lookup| match lookup {
+        TaskLookup::Found { .. } => false,
+        TaskLookup::NotFound { .. } => true,
     });
 
     if first_fail.is_some() {
@@ -151,14 +165,19 @@ fn validate_seq(input: &Input, target: &str, name: &str, seq: &Vec<TaskDef>, pat
     }
 }
 
-fn validate_string(input: &Input, target: &str, name: &str, s: String, path: Vec<PathItem>) -> TaskLookup {
-    match &s[0..1] {
-        "@" => validate(input, target, &s[1..s.len()], path),
-        _ => {
-            TaskLookup::Found {
-                target: target.to_string(),
-                path,
-            }
-        }
+fn validate_string(
+    input: &Input,
+    target: &str,
+    name: &str,
+    string_input: String,
+    path: Vec<PathItem>,
+    prepend: Option<PathItem>,
+) -> TaskLookup {
+    match &string_input[0..1] {
+        "@" => validate(input, target, &string_input[1..string_input.len()], path),
+        _ => TaskLookup::Found {
+            target: target.to_string(),
+            path,
+        },
     }
 }
