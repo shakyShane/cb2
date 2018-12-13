@@ -1,12 +1,12 @@
 use crate::input::Input;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RunMode {
     Series,
     Parallel,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Task {
     Item {
         id: usize,
@@ -21,11 +21,6 @@ pub enum Task {
 
 impl Task {
     pub fn generate(input: &Input, names: &Vec<&str>) -> Task {
-
-        let seq = names.iter().for_each(|name| {
-            println!("name={}", name);
-        });
-
         Task::Group {
             id: 0,
             run_mode: RunMode::Series,

@@ -87,7 +87,7 @@ pub fn validate(input: &Input, target: &str, name: &str, prev_path: Vec<PathItem
             next_path.push(PathItem::String(name.to_string()));
             match item {
                 TaskDef::CmdString(s) => {
-                    validate_string(input, target, name, s.to_string(), next_path)
+                    validate_string(input, target, s.to_string(), next_path)
                 }
                 TaskDef::TaskObj { .. } => TaskLookup::Found {
                     target: target.to_string(),
@@ -116,7 +116,6 @@ fn validate_seq(
                 TaskDef::CmdString(s) => validate_string(
                     input,
                     target,
-                    name,
                     s.to_string(),
                     next_path
                 ),
@@ -147,7 +146,6 @@ fn validate_seq(
 fn validate_string(
     input: &Input,
     target: &str,
-    name: &str,
     string_input: String,
     path: Vec<PathItem>,
 ) -> TaskLookup {
