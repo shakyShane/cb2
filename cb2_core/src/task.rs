@@ -27,11 +27,11 @@ impl Task {
             items: vec![
                 Task::Item {
                     id: 1,
-                    command: "ls".to_string(),
+                    command: "slee".to_string(),
                 },
                 Task::Item {
                     id: 2,
-                    command: "sleep 1".to_string(),
+                    command: "ls -l".to_string(),
                 },
             ],
         }

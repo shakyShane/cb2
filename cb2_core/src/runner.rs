@@ -2,33 +2,39 @@ use crate::task::RunMode;
 use crate::task::Task;
 use std::env;
 use std::io;
+use std::io::Error;
 use std::process::Command;
 use std::sync::mpsc;
 use std::sync::mpsc::Sender;
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
+use std::process::ExitStatus;
 
 #[derive(Debug)]
 pub enum Report {
     Begin { id: usize },
-    End { id: usize },
-    Error { id: usize },
+    End { id: usize, status: ExitStatus },
+    Error { id: usize, error: std::io::Error },
 }
 
 type MsgSender = Sender<Report>;
 type JH = Result<JoinHandle<()>, io::Error>;
 
-pub fn run(task: &Task) {
+pub fn run(task: &Task) -> Vec<Report> {
     let (tx, rx) = mpsc::channel();
 
     process(task, &tx);
 
     drop(tx);
 
+    let mut reports = Vec::new();
+
     for msg in rx {
-        println!("{:?}", msg);
+        reports.push(msg);
     }
+
+    reports
 }
 
 fn process_item(id: usize, command_input: String, tx: &MsgSender) -> JH {
@@ -38,18 +44,25 @@ fn process_item(id: usize, command_input: String, tx: &MsgSender) -> JH {
         .spawn(move || {
             let mut command = Command::new("sh");
 
+            let begin_msg = Report::Begin { id };
+            tx1.send(begin_msg).expect("send begin message");
+
             command.arg("-c").arg(command_input);
 
             match command.status() {
                 Ok(status) => {
-                    println!("status={}", status);
-                    let begin = Report::Begin { id };
-                    tx1.send(begin).unwrap();
+                    let end_msg = Report::End { id, status };
+                    tx1.send(end_msg).expect("send end message");
+                    if status.success() {
+                        Err(())
+                    } else {
+                        Ok(())
+                    }
                 }
-                Err(e) => {
-                    println!("error={}", e);
-                    let begin = Report::Error { id };
-                    tx1.send(begin).unwrap();
+                Err(error) => {
+                    let begin = Report::Error { id, error };
+                    tx1.send(begin).expect("send error message");
+                    Err(())
                 }
             };
         })
