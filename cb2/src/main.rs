@@ -1,9 +1,9 @@
+use cb2_core::exec;
 use cb2_core::input::Input;
 use cb2_core::task::Task;
 use cb2_core::task_lookup::select;
 use cb2_core::task_lookup::TaskError;
 use cb2_core::task_lookup::TaskLookup;
-use cb2_core::exec;
 
 fn main() {
     let yaml: &str = r#"
@@ -30,7 +30,7 @@ fn run(input: &str, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>, Task), 
     let input = Input::from_str(input).map_err(TaskError::Serde)?;
     let lookups = select(&input, &names)?;
     let task_tree = Task::generate(&input, &names);
-//    let reports = runner::run(&task_tree);
+    //    let reports = runner::run(&task_tree);
     let _e = exec::exec();
     Ok((input, lookups, task_tree))
 }

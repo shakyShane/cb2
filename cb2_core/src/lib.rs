@@ -14,7 +14,7 @@ extern crate from_file;
 
 pub mod input;
 //pub mod runner;
+pub mod exec;
 pub mod task;
 pub mod task_lookup;
 pub mod task_lookup_error;
-pub mod exec;
