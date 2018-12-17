@@ -8,6 +8,7 @@ use std::fmt::Debug;
 use futures::sync::mpsc;
 use std::process::Command;
 use tokio_process::CommandExt;
+use std::process::ExitStatus;
 
 #[derive(Debug)]
 enum Cmd {
@@ -67,59 +68,45 @@ impl<T> Future for Display<T>
     }
 }
 
-pub fn exec() {
-    // Use the standard library's `Command` type to build a process and
-    // then execute it via the `CommandExt` trait.
-    let create_async = |cmd: &'static str| {
-        Box::new(lazy(move || {
-            let child = Command::new("sh").arg("-c").arg(cmd).spawn_async();
+fn create_sync(cmd: &'static str) -> Box<Future<Item = ExitStatus, Error = ()> + Send> {
+    Box::new(lazy(move || {
+        let mut child = Command::new("sh");
+        child.arg("-c").arg(cmd.clone());
 
-            // Make sure our child succeeded in spawning and process the result
-            child.expect("failed to spawn")
-                .map(|status| status)
-                .map_err(|e| panic!("failed to wait for exit: {}", e))
-        }))
-    };
-
-    let create_sync = |cmd: &'static str| {
-        Box::new(lazy(move || {
-            let mut child = Command::new("sh");
-            child.arg("-c").arg(cmd.clone());
-
-            match child.status() {
-                Ok(status) => {
-                    Ok(status)
-                }
-                _ => Err(())
+        match child.status() {
+            Ok(status) => {
+                Ok(status)
             }
-        }))
-    };
+            _ => Err(())
+        }
+    }))
+}
 
-    let items_async = vec![
-        create_async("echo 'hello'"),
-        create_async("sleep 1 && echo '2'"),
-        create_async("echo 'shane'"),
+fn create_async(cmd: &'static str) -> Box<Future<Item = ExitStatus, Error = ()> + Send> {
+    Box::new(lazy(move || {
+        let child = Command::new("sh").arg("-c").arg(cmd).spawn_async();
+
+        // Make sure our child succeeded in spawning and process the result
+        child.expect("failed to spawn")
+            .map(|status| status)
+            .map_err(|e| panic!("failed to wait for exit: {}", e))
+    }))
+}
+
+pub fn exec() {
+    let s1 = create_sync("echo 'hello' && sleep 1");
+    let s2 = create_sync("echo 'there'");
+    let s3 = create_async("echo 'world' && sleep 2");
+    let s4 = create_async("echo 'world' && sleep 2");
+    let s5 = create_async("echo 'world' && sleep 2");
+    let s6 = create_sync("echo 'there'");
+
+    let items = vec![
+        create_sync("echo 'shane' && sleep 2"),
+        create_sync("echo 'is here'")
     ];
 
-    let items_sync = vec![
-        create_sync("echo 'hello'"),
-        create_sync("sleep 1 && echo '2'"),
-        create_sync("echo 'shane'"),
-    ];
+    let collected = futures::collect(items).map(|output| ());
 
-//    let mut runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
-//    let s = runtime.block_on(example());
-//    println!("{:?}", s);
-
-    let collected = futures::collect(items_sync).map(|output| {
-        println!("{:?}", output);
-        ()
-    });
-
-    // Send the future to the tokio runtime for execution
-    tokio::run(
-        collected
-////        seq
-//        stream::iter_ok(items).for_each(|f| f)
-    );
+    tokio::run(collected)
 }
