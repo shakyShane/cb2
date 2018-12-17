@@ -1,10 +1,9 @@
 use cb2_core::input::Input;
-use cb2_core::runner;
 use cb2_core::task::Task;
 use cb2_core::task_lookup::select;
 use cb2_core::task_lookup::TaskError;
 use cb2_core::task_lookup::TaskLookup;
-use cb2_core::runner::Report;
+use cb2_core::exec;
 
 fn main() {
     let yaml: &str = r#"
@@ -22,15 +21,16 @@ fn main() {
     "#;
 
     match run(yaml, vec!["build"]) {
-        Ok((_input, _lookups, _task, reports)) => println!("All good, reports={:#?}", reports),
+        Ok((_input, _lookups, _task)) => println!("All good, reports={:#?}", _task),
         Err(e) => println!("{}", e),
     }
 }
 
-fn run(input: &str, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>, Task, Vec<Report>), TaskError> {
+fn run(input: &str, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>, Task), TaskError> {
     let input = Input::from_str(input).map_err(TaskError::Serde)?;
     let lookups = select(&input, &names)?;
     let task_tree = Task::generate(&input, &names);
-    let reports = runner::run(&task_tree);
-    Ok((input, lookups, task_tree, reports))
+//    let reports = runner::run(&task_tree);
+    let _e = exec::exec();
+    Ok((input, lookups, task_tree))
 }

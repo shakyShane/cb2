@@ -20,7 +20,7 @@ pub enum Task {
 }
 
 impl Task {
-    pub fn generate(input: &Input, names: &Vec<&str>) -> Task {
+    pub fn generate(_input: &Input, _names: &Vec<&str>) -> Task {
         Task::Group {
             id: 0,
             run_mode: RunMode::Series,

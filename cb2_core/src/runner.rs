@@ -1,8 +1,6 @@
 use crate::task::RunMode;
 use crate::task::Task;
-use std::env;
 use std::io;
-use std::io::Error;
 use std::process::Command;
 use std::sync::mpsc;
 use std::sync::mpsc::Sender;
