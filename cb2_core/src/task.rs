@@ -6,34 +6,33 @@ pub enum RunMode {
     Parallel,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
+pub struct TaskItem {
+    pub id: usize,
+    pub cmd: String,
+    pub fail: bool,
+}
+
+#[derive(Debug)]
+pub struct TaskGroup {
+    pub id: usize,
+    pub items: Vec<Task>,
+    pub run_mode: RunMode,
+    pub fail: bool,
+}
+
+#[derive(Debug)]
 pub enum Task {
-    Item {
-        id: usize,
-        command: String,
-    },
-    Group {
-        id: usize,
-        items: Vec<Task>,
-        run_mode: RunMode,
-    },
+    Item(TaskItem),
+    Group(TaskGroup),
 }
 
 impl Task {
     pub fn generate(_input: &Input, _names: &Vec<&str>) -> Task {
-        Task::Group {
+        Task::Item(TaskItem{
             id: 0,
-            run_mode: RunMode::Series,
-            items: vec![
-                Task::Item {
-                    id: 1,
-                    command: "slee".to_string(),
-                },
-                Task::Item {
-                    id: 2,
-                    command: "ls -l".to_string(),
-                },
-            ],
-        }
+            cmd: "echo 'hello world'".into(),
+            fail: false
+        })
     }
 }
