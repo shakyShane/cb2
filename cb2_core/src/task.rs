@@ -1,6 +1,8 @@
 use crate::input::Input;
+use crate::task_lookup::PathItem;
+use crate::input::TaskDef;
 
-#[derive(Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum RunMode {
     Series,
     Parallel,
@@ -28,11 +30,41 @@ pub enum Task {
 }
 
 impl Task {
-    pub fn generate(_input: &Input, _names: &Vec<&str>) -> Task {
-        Task::Item(TaskItem{
+    pub fn generate(input: &Input, _names: &Vec<&str>) -> Task {
+        let parsed = _names
+            .iter()
+            .map(|n| get_item(&input, n, vec![]))
+            .collect::<Vec<Task>>();
+
+        Task::Group(TaskGroup{
             id: 0,
-            cmd: "echo 'hello world'".into(),
-            fail: false
+            items: parsed,
+            run_mode: RunMode::Series,
+            fail: true
         })
     }
+}
+
+fn get_item(input: &Input, name: &str, seen: Vec<PathItem>) -> Task {
+    input.tasks.get(name).map(|item| {
+        println!("item={:?}", item);
+        match item {
+            TaskDef::TaskSeq(seq) => {
+                Task::Group(TaskGroup{
+                    id: 0,
+                    items: vec![],
+                    run_mode: RunMode::Series,
+                    fail: true
+                })
+            },
+            TaskDef::CmdString(string) => {
+                Task::Item(TaskItem{
+                    id: 1,
+                    cmd: string.clone(),
+                    fail: true
+                })
+            },
+            TaskDef::TaskObj { .. } => unimplemented!(),
+        }
+    }).unwrap()
 }

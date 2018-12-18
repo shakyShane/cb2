@@ -1,5 +1,6 @@
 use from_file::FromFile;
 use std::collections::HashMap;
+use crate::task::RunMode;
 
 #[derive(Debug, Deserialize, FromFile)]
 pub struct Input {

@@ -7,19 +7,13 @@ fn main() {
     let yaml: &str = r#"
     tasks:
         build:
-           - ls
-           - command: sleep 1
-        other: ls -l
-        other2: ["@other", "@sleep 2"]
-        swagger:
-          command: swagger is here
-        build:client: |
-          rimraf dist
-          webpack --progress -p
+           - ls -l
+           - "@other"
+        other: echo 'hello world'
     "#;
 
     match run(yaml, vec!["build"]) {
-        Ok((_input, _lookups)) => println!("All good, reports="),
+        Ok((_input, _lookups)) => println!("All good!"),
         Err(e) => println!("{}", e),
     }
 }
