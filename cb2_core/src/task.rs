@@ -33,7 +33,7 @@ impl Task {
         match &string[0..1] {
             "@" => Task::get_task_item(&input, &string[1..string.len()]),
             _ => Task::Item(TaskItem {
-                fail: false,
+                fail: true,
                 id: 1,
                 cmd: string.to_string(),
             }),
@@ -79,7 +79,7 @@ impl Task {
             id: 0,
             items: parsed,
             run_mode: RunMode::Parallel,
-            fail: false,
+            fail: true,
         })
     }
     pub fn get_task_item(input: &Input, name: &str) -> Task {
