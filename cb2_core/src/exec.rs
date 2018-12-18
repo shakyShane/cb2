@@ -3,6 +3,9 @@ use futures::future::lazy;
 use futures::Future;
 use std::process::Command;
 use tokio_process::CommandExt;
+use futures::stream::iter_ok;
+use futures::Stream;
+use futures::future::Either;
 
 #[derive(Debug, Clone)]
 enum Report {
@@ -35,7 +38,7 @@ pub fn exec(input: Task) {
     tokio::run(collected1);
 }
 
-fn create_sync(task: TaskItem) -> Box<Future<Item = Report, Error = Report> + Send> {
+fn create_sync(task: TaskItem) -> Box<Future<Item = (), Error = ()> + Send> {
     Box::new(lazy(move || {
         let mut child = Command::new("sh");
         child.arg("-c").arg(task.cmd.clone());
@@ -47,41 +50,42 @@ fn create_sync(task: TaskItem) -> Box<Future<Item = Report, Error = Report> + Se
                     exit_code: status.code(),
                 };
                 if status.success() {
-                    Ok(report)
+                    Ok(())
                 } else {
                     if task.fail {
-                        Err(report)
+                        Err(())
                     } else {
-                        Ok(report)
+                        Ok(())
                     }
                 }
             }
-            _ => Err(Report::Error {
-                id: task.id.clone(),
-            }),
+            _ => Err(()),
         }
     }))
 }
 
-fn create_async(task: TaskItem) -> Box<Future<Item = Report, Error = Report> + Send> {
+fn create_async(task: TaskItem) -> Box<Future<Item = (), Error = ()> + Send> {
     Box::new(lazy(move || {
         let child = Command::new("sh").arg("-c").arg(task.cmd).spawn_async();
         let id_clone = task.id.clone();
 
         child
             .expect("failed to spawn")
-            .map(move |status| Report::End {
-                id: id_clone,
-                exit_code: status.code(),
-            })
-            .map_err(move |_e| Report::Error { id: id_clone })
+//            .map(move |status| Report::End {
+//                id: id_clone,
+//                exit_code: status.code(),
+//            })
+            .map(|s| ())
+//            .map_err(move |_e| Report::Error { id: id_clone })
+            .map_err(move |_e| ())
     }))
 }
 
-fn create_seq(group: TaskGroup) -> Box<Future<Item = Report, Error = Report> + Send> {
+fn create_seq(group: TaskGroup) -> Box<Future<Item = (), Error = ()> + Send> {
     Box::new(lazy(move || {
         let id_clone = group.id.clone();
         let run_mode = group.run_mode.clone();
+        let run_mode2 = group.run_mode.clone();
         let items_mapped =
             group
                 .items
@@ -95,21 +99,22 @@ fn create_seq(group: TaskGroup) -> Box<Future<Item = Report, Error = Report> + S
                     Task::Group(group) => create_seq(group),
                 });
 
-        futures::collect(items_mapped).map(move |reports| {
-            let all_valid = is_valid_group(reports.clone());
-
-            if all_valid {
-                Report::EndGroup {
-                    id: id_clone,
-                    reports: reports.clone(),
-                }
-            } else {
-                Report::ErrorGroup {
-                    id: id_clone,
-                    reports: reports.clone(),
-                }
+        match run_mode2 {
+            RunMode::Series => {
+                Either::A(iter_ok::<_, ()>(items_mapped).for_each(|f| f))
             }
-        })
+            RunMode::Parallel => {
+                Either::B(futures::collect(items_mapped).map(move |reports| {
+                    let all_valid = true;
+
+                    if all_valid {
+                        ()
+                    } else {
+                        ()
+                    }
+                }))
+            }
+        }
     }))
 }
 
