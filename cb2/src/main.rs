@@ -7,9 +7,16 @@ fn main() {
     let yaml: &str = r#"
     tasks:
         build:
-           - ls -l
-           - "@other"
-        other: echo 'hello world'
+          - echo 'before'
+          - sleep 1
+          - echo 'after'
+          - sleep 1
+          - "@other"
+        other:
+          - echo 'hello world'
+          - echo 'hello world'
+          - echo 'hello world'
+          - echo 'hello world'
     "#;
 
     match run(yaml, vec!["build"]) {
@@ -21,7 +28,7 @@ fn main() {
 fn run(input: &str, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
     let input = Input::from_str(input).map_err(TaskError::Serde)?;
     let lookups = select(&input, &names)?;
-    let task_tree = Task::generate(&input, &names);
+    let task_tree = Task::generate_series(&input, &names);
     let _e = exec::exec(task_tree);
     Ok((input, lookups))
 }

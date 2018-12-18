@@ -1,6 +1,5 @@
 use from_file::FromFile;
 use std::collections::HashMap;
-use crate::task::RunMode;
 
 #[derive(Debug, Deserialize, FromFile)]
 pub struct Input {
@@ -21,5 +20,9 @@ pub enum TaskDef {
         env: Option<Vec<String>>,
     },
     CmdString(String),
-    TaskSeq(Vec<TaskDef>),
+    TaskSeq(Vec<TaskDef>)
+//    TaskSeqObj {
+//        tasks: Vec<TaskDef>,
+//
+//    }
 }
