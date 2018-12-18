@@ -92,6 +92,9 @@ pub fn validate(input: &Input, target: &str, name: &str, prev_path: Vec<PathItem
                     path: next_path,
                 },
                 TaskDef::TaskSeq(seq) => validate_seq(input, target, name, seq, next_path),
+                TaskDef::TaskSeqObj { tasks, .. } => {
+                    validate_seq(input, target, name, tasks, next_path)
+                }
             }
         },
     )
@@ -113,6 +116,9 @@ fn validate_seq(
             match seq_item {
                 TaskDef::CmdString(s) => validate_string(input, target, s.to_string(), next_path),
                 TaskDef::TaskSeq(seq) => validate_seq(input, target, name, seq, next_path),
+                TaskDef::TaskSeqObj { tasks, .. } => {
+                    validate_seq(input, target, name, tasks, next_path)
+                }
                 TaskDef::TaskObj { .. } => TaskLookup::Found {
                     target: target.to_string(),
                     path: next_path,

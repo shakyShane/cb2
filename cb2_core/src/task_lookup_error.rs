@@ -12,7 +12,7 @@ Here's the path I tried to resolve:
 
     {}
 
-The error occured because {} could not be found
+The error occured because task {} could not be found
     "#,
         target,
         print_path(path),

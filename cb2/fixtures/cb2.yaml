@@ -2,8 +2,9 @@ tasks:
 
   # Example of accepting a sequence of strings
   build:
-    - ["@client", "@server"]
-    - "@storybook"
+    command: |
+      NAME=shane
+      echo 'hello'
 
   # Example of accepting a map
   docker:

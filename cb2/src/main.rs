@@ -4,29 +4,20 @@ use cb2_core::task::Task;
 use cb2_core::task_lookup::{select, TaskError, TaskLookup};
 
 fn main() {
-    let yaml: &str = r#"
-    tasks:
-        build:
-          - echo 'before'
-          - sleep 1
-          - echo 'after'
-          - sleep 1
-          - "@other"
-        other:
-          - echo 'hello world'
-          - echo 'hello world'
-          - echo 'hello world'
-          - echo 'hello world'
-    "#;
+    let args = vec!["build"];
 
-    match run(yaml, vec!["build"]) {
-        Ok((_input, _lookups)) => println!("All good!"),
-        Err(e) => println!("{}", e),
-    }
+    match Input::read_from_file("cb2/fixtures/cb2.yaml") {
+        Ok(input) => {
+            match run(input, args) {
+                Ok((_input, _lookups)) => println!("All good!"),
+                Err(e) => println!("{}", e),
+            }
+        },
+        Err(e) => println!("{}", e.to_string())
+    };
 }
 
-fn run(input: &str, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
-    let input = Input::from_str(input).map_err(TaskError::Serde)?;
+fn run(input: Input, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
     let lookups = select(&input, &names)?;
     let task_tree = Task::generate_series(&input, &names);
     let _e = exec::exec(task_tree);

@@ -17,7 +17,7 @@ pub fn exec(input: Task) {
 
     match input {
         Task::Group(group) => items.push(create_seq(group)),
-        Task::Item(item) => items.push(create_sync(item))
+        Task::Item(item) => items.push(create_sync(item)),
     }
 
     let collected1 = futures::collect(items)
@@ -94,26 +94,36 @@ fn create_seq(group: TaskGroup) -> Box<Future<Item = Report, Error = Report> + S
                     },
                     Task::Group(group) => create_seq(group),
                 });
-        futures::collect(items_mapped).map(move |output| {
-            let all_valid = output.iter().all(|report| match report {
-                Report::End { exit_code, .. } => match exit_code {
-                    Some(0) => true,
-                    _ => false,
-                },
-                _ => false,
-            });
+
+        futures::collect(items_mapped).map(move |reports| {
+            let all_valid = is_valid_group(reports.clone());
 
             if all_valid {
                 Report::EndGroup {
                     id: id_clone,
-                    reports: output.clone(),
+                    reports: reports.clone(),
                 }
             } else {
                 Report::ErrorGroup {
                     id: id_clone,
-                    reports: output.clone(),
+                    reports: reports.clone(),
                 }
             }
         })
     }))
+}
+
+///
+/// Look at a group of reports and determine if
+/// they were all successful
+///
+fn is_valid_group(reports: Vec<Report>) -> bool {
+    reports.into_iter().all(|report| match report {
+        Report::End { exit_code, .. } => match exit_code {
+            Some(0) => true,
+            _ => false,
+        },
+        Report::EndGroup { reports, .. } => is_valid_group(reports),
+        _ => false,
+    })
 }
