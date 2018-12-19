@@ -2,9 +2,16 @@ tasks:
 
   # Example of accepting a sequence of strings
   build:
-    command: |
-      NAME=shane
-      echo 'hello'
+    - "@t2"
+    - ["@t1", "@t3", "@t4", "@t5", "@t6"]
+    - "@t2"
+
+  t1: sleep 1 && ech
+  t2: sleep 1 && echo 2
+  t3: sleep 1 && echo 3
+  t4: sleep 1 && echo 4
+  t5: sleep 1 && echo 5
+  t6: sleep 1 && echo 6
 
   # Example of accepting a map
   docker:
