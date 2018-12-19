@@ -49,24 +49,31 @@ fn create_sync(task: TaskItem) -> Box<Future<Item = (), Error = ()> + Send> {
                     id: task.id.clone(),
                     exit_code: status.code(),
                 };
+                println!("sync endede, {}", status);
                 if status.success() {
                     Ok(())
                 } else {
+                    println!("item errored");
                     if task.fail {
                         Err(())
                     } else {
-                        Ok(())
+                        Err(())
                     }
                 }
             }
-            _ => Err(()),
+            _ => {
+                println!("some error");
+                Err(())
+            },
         }
     }))
 }
 
 fn create_async(task: TaskItem) -> Box<Future<Item = (), Error = ()> + Send> {
     Box::new(lazy(move || {
-        let child = Command::new("sh").arg("-c").arg(task.cmd).spawn_async();
+        let cmd_clone = task.cmd.clone();
+        let cmd_clone2 = task.cmd.clone();
+        let child = Command::new("sh").arg("-c").arg(cmd_clone).spawn_async();
         let id_clone = task.id.clone();
 
         child
@@ -75,9 +82,15 @@ fn create_async(task: TaskItem) -> Box<Future<Item = (), Error = ()> + Send> {
 //                id: id_clone,
 //                exit_code: status.code(),
 //            })
-            .map(|s| ())
+            .map(move |s| {
+                println!("async item success {}, {}", cmd_clone2, s);
+                ()
+            })
 //            .map_err(move |_e| Report::Error { id: id_clone })
-            .map_err(move |_e| ())
+            .map_err(move |_e| {
+                println!("async item errored");
+                ()
+            })
     }))
 }
 
