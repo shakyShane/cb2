@@ -3,9 +3,14 @@ use futures::future::lazy;
 use futures::Future;
 use std::process::Command;
 use tokio_process::CommandExt;
-use futures::stream::iter_ok;
 use futures::Stream;
+use futures::stream::iter_ok;
 use futures::future::Either;
+use futures::Poll;
+use futures::Async;
+use std::fmt;
+use futures::future;
+use std::process::ExitStatus;
 
 #[derive(Debug, Clone)]
 enum Report {
@@ -14,134 +19,108 @@ enum Report {
     Error { id: usize },
     ErrorGroup { id: usize, reports: Vec<Report> },
 }
-
-pub fn exec(input: Task) {
-    let mut items = vec![];
-
-    match input {
-        Task::Group(group) => items.push(create_seq(group)),
-        Task::Item(item) => items.push(create_sync(item)),
-    }
-
-    let collected1 = futures::collect(items)
-        .map(move |o| {
-            for es in o {
-                println!("o={:?}", es);
-            }
-            ()
-        })
-        .map_err(|e| {
-            println!("e={:?}", e);
-            ()
-        });
-
-    tokio::run(collected1);
+enum State {
+    Idle, Running, Done(ExitStatus)
 }
 
-fn create_sync(task: TaskItem) -> Box<Future<Item = (), Error = ()> + Send> {
-    Box::new(lazy(move || {
-        let mut child = Command::new("sh");
-        child.arg("-c").arg(task.cmd.clone());
+struct HelloWorld {
+    cmd: String,
+    state: State,
+    fail: bool
+}
 
-        match child.status() {
-            Ok(status) => {
-                let report = Report::End {
-                    id: task.id.clone(),
-                    exit_code: status.code(),
-                };
-                println!("sync endede, {}", status);
-                if status.success() {
-                    Ok(())
-                } else {
-                    println!("item errored");
-                    if task.fail {
-                        Err(())
-                    } else {
-                        Err(())
+impl HelloWorld {
+    pub fn new(cmd: impl Into<String>, fail: bool) -> HelloWorld {
+        HelloWorld{cmd: cmd.into(), state: State::Idle, fail}
+    }
+}
+
+impl Future for HelloWorld {
+    type Item = Report;
+    type Error = Report;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match self.state {
+            State::Idle => {
+                let mut child = Command::new("sh");
+                child.arg("-c").arg(self.cmd.to_string());
+                match child.status() {
+                    Ok(s) => {
+                        self.state = State::Done(s);
+                        Ok(Async::NotReady)
+                    }
+                    Err(e) => {
+                        Err(Report::Error {id: 1})
                     }
                 }
             }
-            _ => {
-                println!("some error");
-                Err(())
-            },
-        }
-    }))
-}
-
-fn create_async(task: TaskItem) -> Box<Future<Item = (), Error = ()> + Send> {
-    Box::new(lazy(move || {
-        let cmd_clone = task.cmd.clone();
-        let cmd_clone2 = task.cmd.clone();
-        let child = Command::new("sh").arg("-c").arg(cmd_clone).spawn_async();
-        let id_clone = task.id.clone();
-
-        child
-            .expect("failed to spawn")
-//            .map(move |status| Report::End {
-//                id: id_clone,
-//                exit_code: status.code(),
-//            })
-            .map(move |s| {
-                println!("async item success {}, {}", cmd_clone2, s);
-                ()
-            })
-//            .map_err(move |_e| Report::Error { id: id_clone })
-            .map_err(move |_e| {
-                println!("async item errored");
-                ()
-            })
-    }))
-}
-
-fn create_seq(group: TaskGroup) -> Box<Future<Item = (), Error = ()> + Send> {
-    Box::new(lazy(move || {
-        let id_clone = group.id.clone();
-        let run_mode = group.run_mode.clone();
-        let run_mode2 = group.run_mode.clone();
-        let items_mapped =
-            group
-                .items
-                .into_iter()
-                .enumerate()
-                .map(move |(_index, item)| match item {
-                    Task::Item(item) => match run_mode {
-                        RunMode::Series => create_sync(item),
-                        RunMode::Parallel => create_async(item),
-                    },
-                    Task::Group(group) => create_seq(group),
-                });
-
-        match run_mode2 {
-            RunMode::Series => {
-                Either::A(iter_ok::<_, ()>(items_mapped).for_each(|f| f))
+            State::Running => {
+                Ok(Async::NotReady)
             }
-            RunMode::Parallel => {
-                Either::B(futures::collect(items_mapped).map(move |reports| {
-                    let all_valid = true;
-
-                    if all_valid {
-                        ()
+            State::Done(s) => {
+                if s.success() {
+                    Ok(Async::Ready(Report::End{id: 1, exit_code: Some(0)}))
+                } else {
+                    if self.fail {
+                        Err(Report::Error {id: 1})
                     } else {
-                        ()
+                        Ok(Async::Ready(Report::Error{id: 1}))
                     }
-                }))
+                }
             }
         }
-    }))
+    }
 }
 
-///
-/// Look at a group of reports and determine if
-/// they were all successful
-///
-fn is_valid_group(reports: Vec<Report>) -> bool {
-    reports.into_iter().all(|report| match report {
-        Report::End { exit_code, .. } => match exit_code {
-            Some(0) => true,
-            _ => false,
-        },
-        Report::EndGroup { reports, .. } => is_valid_group(reports),
-        _ => false,
-    })
+struct Display<T>(T);
+
+impl<T> Future for Display<T>
+    where T: Future, T::Item: fmt::Debug
+{
+    type Item = ();
+    type Error = T::Error;
+
+    fn poll(&mut self) -> Poll<(), T::Error> {
+        loop {
+            match self.0.poll() {
+                Ok(Async::Ready(value)) =>  {
+                    return Ok(Async::Ready(()));
+                },
+                Ok(Async::NotReady) => {
+                    // continue polling the child
+                },
+                Err(err) =>  {
+//                    println!("--P-- was err");
+                    return Err(err);
+                },
+            }
+        }
+    }
+}
+
+pub fn exec() {
+
+
+    tokio::run(lazy(|| {
+
+        let items = vec![
+            Display(HelloWorld::new("sleep 1 && echo 1", true)),
+            Display(HelloWorld::new("sleep 1 && eco 2", true)),
+            Display(HelloWorld::new("sleep 1 && echo 3", true)),
+        ];
+
+        println!("Starting");
+
+        let col = futures::collect(items).map(|vec_out| {
+            println!("vec-out {:#?}", vec_out);
+            ();
+        }).map_err(|e| {
+            println!("vec-error {:?}", e);
+            ()
+        });
+
+        tokio::spawn(col);
+
+        Ok(())
+    }));
 }
