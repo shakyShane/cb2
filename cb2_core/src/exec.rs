@@ -65,21 +65,28 @@ pub fn exec() {
 //            .map(|r| ())
 //            .map_err(|e| ());
 
-//        let impl_1 = iter_ok::<_, _>(items)
-//            .for_each(|this_future| {
-//                this_future
-//                    .map(|x| ())
-//                    .map_err(|e| ())
-//            });
+        let impl_1 = iter_ok::<_, ()>(items)
+            .for_each(|this_future| {
+                this_future
+                    .then(|x| {
+                        println!("x={:?}", x);
+                        Err(())
+                    })
+                    .map(|x: ()| ())
+                    .map_err(|_| {
+                        println!("did get an error");
+                        ()
+                    })
+            });
 
-        let impl_2 = futures::collect(items)
-            .map(|items| {
-                println!("all results {:?}", items);
-                ()
-            })
-            .map_err(|e| ());
+//        let impl_2 = futures::collect(items)
+//            .map(|items| {
+//                println!("all results {:?}", items);
+//                ()
+//            })
+//            .map_err(|e| ());
 
-        tokio::spawn(impl_2);
+        tokio::spawn(impl_1);
 
 //        let output = vec![
 //            item("echo before && sleep 1 && echo after"),
