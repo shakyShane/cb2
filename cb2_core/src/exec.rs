@@ -69,8 +69,20 @@ pub fn exec() {
             .for_each(|this_future| {
                 this_future
                     .then(|x| {
-                        println!("x={:?}", x);
-                        Err(())
+                        match x {
+                            Ok(Ok(s)) => {
+                                println!("succes, continuing={:?}", s);
+                                Ok(())
+                            },
+                            Ok(Err(s)) => {
+                                println!("error, terminating sequence {:?}", s);
+                                Err(())
+                            }
+                            Err(_) => {
+                                println!("unknown error, terminating sequence");
+                                Err(())
+                            }
+                        }
                     })
                     .map(|x: ()| ())
                     .map_err(|_| {
