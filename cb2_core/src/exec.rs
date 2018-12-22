@@ -15,34 +15,6 @@ use futures::sync::oneshot::Receiver;
 use futures::future::{Err as FutureErr, err};
 use futures::future::Either;
 
-//#[derive(Debug)]
-//pub struct Record {
-//    name: String,
-//}
-//
-//impl Future for Record {
-//    type Item = String;
-//    type Error = ();
-//
-//    fn poll(&mut self) -> Result<Async<<Self as Future>::Item>, <Self as Future>::Error> {
-//        Ok(Async::Ready("oops!".to_string()))
-//    }
-//}
-//
-//pub fn get_items() -> Box<Future<Item=Vec<T>, Error=()> + Send> {
-//    Box::new(future::lazy(|| {
-//        Ok(vec![
-//            get_item("echo 1"),
-//            get_item("echo 2"),
-//        ])
-//    }))
-//}
-//
-//
-//pub fn item_stream() -> Box<Stream<Item=T, Error=()> + Send> {
-//    Box::new(get_items().map(stream::iter_ok).flatten_stream())
-//}
-
 pub fn exec() {
     tokio::run(lazy(|| {
         let get_item = |cmd: &str| {
@@ -77,42 +49,37 @@ pub fn exec() {
             get_item("eco 3"),
             get_item("echo 3"),
         ];
-
-//        let fol = items.into_iter().fold(future::ok("Other".to_string()), |acc, item| {
-//            acc.and_then(move |res| item)
-//        });
-
-        let f = get_item("echo 1 && sleep 2 && echo 2")
-            .and_then(move |res| get_item("echo shane 3"))
-            .and_then(move |res| get_item("echo shane 4"))
-            .and_then(move |res| get_item("ech"))
-            .and_then(move |res| {
-                if res.is_ok() {
-                    Either::A(get_item("shane"))
-                } else {
-                    println!("Can abort next run here");
-                    Either::B(futures::future::ok(Ok("yep".to_string())))
-                }
-            })
-            .map(|r| ())
-            .map_err(|e| ());
-
-
-//        let output = items.fold()
-
-//        let impl_1 = iter_ok::<_, _>(items)
-//            .for_each(|f| f.map(|x| ()).map_err(|e| e));
-
-//        let impl_2 = futures::collect(items)
-//            .map(|items| {
-//                println!("all results {:?}", items);
-//                ()
+//
+//        let f = get_item("echo 1 && sleep 2 && echo 2")
+//            .and_then(move |res| get_item("echo shane 3"))
+//            .and_then(move |res| get_item("echo shane 4"))
+//            .and_then(move |res| get_item("ech"))
+//            .and_then(move |res| {
+//                if res.is_ok() {
+//                    Either::A(get_item("shane"))
+//                } else {
+//                    println!("Can abort next run here");
+//                    Either::B(futures::future::ok(Ok("yep".to_string())))
+//                }
 //            })
+//            .map(|r| ())
 //            .map_err(|e| ());
 
-        tokio::spawn(f);
+//        let impl_1 = iter_ok::<_, _>(items)
+//            .for_each(|this_future| {
+//                this_future
+//                    .map(|x| ())
+//                    .map_err(|e| ())
+//            });
 
-//        tokio::spawn(item_stream());
+        let impl_2 = futures::collect(items)
+            .map(|items| {
+                println!("all results {:?}", items);
+                ()
+            })
+            .map_err(|e| ());
+
+        tokio::spawn(impl_2);
 
 //        let output = vec![
 //            item("echo before && sleep 1 && echo after"),
