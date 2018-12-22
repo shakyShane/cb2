@@ -20,6 +20,6 @@ fn main() {
 fn run(input: Input, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
     let lookups = select(&input, &names)?;
     let task_tree = Task::generate_series(&input, &names);
-    let _e = exec::exec(task_tree);
+    let _e = exec::exec();
     Ok((input, lookups))
 }
