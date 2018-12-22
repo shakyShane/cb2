@@ -5,21 +5,29 @@ use futures::stream::{iter_ok, iter_result};
 use std::process::Command;
 use tokio_process::CommandExt;
 use std::process::ExitStatus;
-use futures::sync::oneshot::Sender;
+use futures::sync::oneshot::{Sender, Receiver};
 
 use futures::Future;
 use futures::Stream;
 use futures::{future, stream};
 use futures::Async;
-use futures::sync::oneshot::Receiver;
 use futures::future::{Err as FutureErr, err};
 use futures::future::Either;
+
+#[derive(Debug, Clone)]
+enum Report {
+    Unknown,
+    End { id: usize },
+    EndGroup { id: usize, reports: Vec<Report> },
+    Error { id: usize },
+    ErrorGroup { id: usize, reports: Vec<Report> },
+}
 
 pub fn exec() {
     tokio::run(lazy(|| {
         let get_item = |cmd: &str| {
             let cmd_string = cmd.to_string();
-            lazy(move || {
+            Box::new(lazy(move || {
                 let (tx, rx) = oneshot::channel();
                 tokio::spawn(lazy(move || {
                     let mut child = Command::new("sh");
@@ -27,10 +35,10 @@ pub fn exec() {
                     match child.status() {
                         Ok(s) => {
                             if s.success() {
-                                tx.send(Ok("hello".to_string())).expect("should sent one-shot Ok");
+                                tx.send(Ok(Report::End{id: 0})).expect("should sent one-shot Ok");
                                 Ok(())
                             } else {
-                                tx.send(Err("no".to_string())).expect("should sent one-shot Err");
+                                tx.send(Err(Report::Error{id: 0})).expect("should sent one-shot Err");
                                 Err(())
                             }
                         }
@@ -41,64 +49,63 @@ pub fn exec() {
                     }
                 }));
                 rx
-            })
+            }))
         };
 
         let items = vec![
             get_item("echo 1 && sleep 2 && echo 2"),
-            get_item("eco 3"),
             get_item("echo 3"),
+            get_item("echo 4"),
+            get_item("echo '---'"),
         ];
-//
-//        let f = get_item("echo 1 && sleep 2 && echo 2")
-//            .and_then(move |res| get_item("echo shane 3"))
-//            .and_then(move |res| get_item("echo shane 4"))
-//            .and_then(move |res| get_item("ech"))
-//            .and_then(move |res| {
-//                if res.is_ok() {
-//                    Either::A(get_item("shane"))
-//                } else {
-//                    println!("Can abort next run here");
-//                    Either::B(futures::future::ok(Ok("yep".to_string())))
-//                }
-//            })
-//            .map(|r| ())
-//            .map_err(|e| ());
 
-        let impl_1 = iter_ok::<_, ()>(items)
+        let items_2 = vec![
+            get_item("echo '  101'"),
+            get_item("echo '  102'"),
+            get_item("echo '  103'"),
+            get_item("ech '  104'"),
+            get_item("echo '  105'"),
+            get_item("echo '  106'"),
+            get_item("echo '  117'"),
+        ];
+
+        let impl_1 = iter_ok(items)
             .for_each(|this_future| {
                 this_future
                     .then(|x| {
                         match x {
                             Ok(Ok(s)) => {
-                                println!("succes, continuing={:?}", s);
+//                                println!("success, continuing={:?}", s);
                                 Ok(())
                             },
                             Ok(Err(s)) => {
-                                println!("error, terminating sequence {:?}", s);
+//                                println!("error, terminating sequence {:?}", s);
                                 Err(())
                             }
                             Err(_) => {
-                                println!("unknown error, terminating sequence");
+//                                println!("unknown error, terminating sequence");
                                 Err(())
                             }
                         }
                     })
-                    .map(|x: ()| ())
-                    .map_err(|_| {
-                        println!("did get an error");
-                        ()
-                    })
             });
 
-//        let impl_2 = futures::collect(items)
-//            .map(|items| {
-//                println!("all results {:?}", items);
-//                ()
-//            })
-//            .map_err(|e| ());
+        let impl_2 = futures::collect(items_2)
+            .then(|res| {
+                let all_valid = match res {
+                    Ok(items) => items.into_iter().all(|x| x.is_ok()),
+                    Err(_) => false,
+                };
 
-        tokio::spawn(impl_1);
+                if all_valid {
+                    Ok(())
+                } else {
+                    Err(())
+                }
+            });
+
+        tokio::spawn(impl_2.and_then(move |x| impl_1).map(|x| ()).map_err(|e| ()));
+//        tokio::spawn(chain.map(|x| ()).map_err(|e| ()));
 
 //        let output = vec![
 //            item("echo before && sleep 1 && echo after"),
