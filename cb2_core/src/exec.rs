@@ -15,7 +15,7 @@ use futures::future::{Err as FutureErr, err};
 use futures::future::Either;
 
 #[derive(Debug, Clone)]
-enum Report {
+pub enum Report {
     Unknown,
     End { id: usize },
     EndGroup { id: usize, reports: Vec<Report> },
@@ -23,34 +23,35 @@ enum Report {
     ErrorGroup { id: usize, reports: Vec<Report> },
 }
 
+pub fn get_item(cmd: impl Into<String>) -> Box<Future<Item=Result<Report, Report>, Error=futures::Canceled> + Send> {
+    let cmd_clone = cmd.into();
+    Box::new(lazy(||{
+        let (tx, rx) = oneshot::channel();
+        tokio::spawn(lazy(move || {
+            let mut child = Command::new("sh");
+            child.arg("-c").arg(cmd_clone);
+            match child.status() {
+                Ok(s) => {
+                    if s.success() {
+                        tx.send(Ok(Report::End{id: 0})).expect("should sent one-shot Ok");
+                        Ok(())
+                    } else {
+                        tx.send(Err(Report::Error{id: 0})).expect("should sent one-shot Err");
+                        Err(())
+                    }
+                }
+                Err(e) => {
+                    panic!("I can't see how or why we'd get here...");
+                    Err(())
+                }
+            }
+        }));
+        rx
+    }))
+}
+
 pub fn exec() {
     tokio::run(lazy(|| {
-        let get_item = |cmd: &str| {
-            let cmd_string = cmd.to_string();
-            Box::new(lazy(move || {
-                let (tx, rx) = oneshot::channel();
-                tokio::spawn(lazy(move || {
-                    let mut child = Command::new("sh");
-                    child.arg("-c").arg(cmd_string);
-                    match child.status() {
-                        Ok(s) => {
-                            if s.success() {
-                                tx.send(Ok(Report::End{id: 0})).expect("should sent one-shot Ok");
-                                Ok(())
-                            } else {
-                                tx.send(Err(Report::Error{id: 0})).expect("should sent one-shot Err");
-                                Err(())
-                            }
-                        }
-                        Err(e) => {
-                            panic!("I can't see how or why we'd get here...");
-                            Err(())
-                        }
-                    }
-                }));
-                rx
-            }))
-        };
 
         let items = vec![
             get_item("echo 1 && sleep 2 && echo 2"),
