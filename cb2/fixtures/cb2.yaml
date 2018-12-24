@@ -3,15 +3,22 @@ tasks:
   # Example of accepting a sequence of strings
   build:
     - "@t2"
-    - ["@t1", "@t3", "@t4", "@t5", "@t6"]
+    - ["@t1", "@t3", "@t4", "@t5", "@t6", "@p"]
     - "@t2"
 
-  t1: sleep 1 && ech
+  t1: sleep 1 && echo 1
   t2: sleep 1 && echo 2
   t3: sleep 1 && echo 3
   t4: sleep 1 && echo 4
   t5: sleep 1 && echo 5
   t6: sleep 1 && echo 6
+
+  p:
+    - echo p1
+    - echo p2
+    - echo p3
+    - echo p4
+    - echo p5
 
   # Example of accepting a map
   docker:

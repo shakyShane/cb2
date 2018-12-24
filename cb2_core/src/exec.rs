@@ -59,7 +59,10 @@ pub fn get_seq(group: TaskGroup) -> FutureSig {
             .map(|item| {
                 match item {
                     Task::Item(item) => create_item(item),
-                    _ => unimplemented!()
+                    Task::Group(group) => match group.run_mode {
+                        RunMode::Series => get_seq(group),
+                        RunMode::Parallel => get_async_seq(group),
+                    },
                 }
             });
 
@@ -78,8 +81,8 @@ pub fn get_seq(group: TaskGroup) -> FutureSig {
                                 next.push(Err(s));
                                 Err(())
                             }
-                            Err(_) => {
-                                unimplemented!()
+                            Err(e) => {
+                                Err(())
                             }
                         }
                     })
@@ -109,7 +112,10 @@ pub fn get_async_seq(group: TaskGroup) -> FutureSig {
             .map(|item| {
                 match item {
                     Task::Item(item) => create_item(item),
-                    _ => unimplemented!()
+                    Task::Group(group) => match group.run_mode {
+                        RunMode::Series => get_seq(group),
+                        RunMode::Parallel => get_async_seq(group),
+                    },
                 }
             });
 
@@ -129,29 +135,19 @@ pub fn get_async_seq(group: TaskGroup) -> FutureSig {
     }))
 }
 
-pub fn exec() {
-    tokio::run(lazy(|| {
+pub fn exec(task_tree: Task) {
+    tokio::run(lazy(move || {
 
-        let s1 = get_seq(TaskGroup{
-            id: 0,
-            items: vec![
-                Task::Item(TaskItem{
-                    id: 1,
-                    cmd: "echo 1 && sleep 1 && echo 1.5".into(),
-                    fail: false
-                }),
-                Task::Item(TaskItem{
-                    id: 2,
-                    cmd: "echo 2".into(),
-                    fail: false
-                })
-            ],
-            run_mode: RunMode::Series,
-            fail: false
-        });
+        let as_future = match task_tree {
+            Task::Item(item) => create_item(item),
+            Task::Group(group) => match group.run_mode {
+                RunMode::Series => get_seq(group),
+                RunMode::Parallel => get_async_seq(group),
+            }
+        };
 
-        let chain = s1.map(|val| {
-            println!("outgoing = {:#?}", val);
+        let chain = as_future.map(|val| {
+            println!("outgoing = {:?}", val);
             ()
         }).map_err(|e| {
             println!("Err made it to the top = {:?}", e);
