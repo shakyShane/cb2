@@ -1,18 +1,11 @@
 use crate::task::{RunMode, Task, TaskGroup, TaskItem};
 use futures::future::lazy;
 use futures::sync::oneshot;
-use futures::stream::{iter_ok, iter_result};
+use futures::stream::{iter_ok};
 use std::process::Command;
-use tokio_process::CommandExt;
-use std::process::ExitStatus;
-use futures::sync::oneshot::{Sender, Receiver};
 
 use futures::Future;
 use futures::Stream;
-use futures::{future, stream};
-use futures::Async;
-use futures::future::{Err as FutureErr, err};
-use futures::future::Either;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -27,9 +20,10 @@ pub enum Report {
     ErrorGroup { id: usize, reports: Vec<Result<Report, Report>> },
 }
 
-pub fn create_item(cmd: impl Into<String>) -> FutureSig {
-    let cmd_clone = cmd.into();
-    Box::new(lazy(||{
+pub fn create_item(task_item: TaskItem) -> FutureSig {
+    let cmd_clone = task_item.cmd.clone();
+    let id_clone = task_item.id.clone();
+    Box::new(lazy(move ||{
         let (tx, rx) = oneshot::channel();
         tokio::spawn(lazy(move || {
             let mut child = Command::new("sh");
@@ -37,33 +31,37 @@ pub fn create_item(cmd: impl Into<String>) -> FutureSig {
             match child.status() {
                 Ok(s) => {
                     if s.success() {
-                        tx.send(Ok(Report::End{id: 0})).expect("should sent one-shot Ok");
+                        tx.send(Ok(Report::End{id: id_clone})).expect("should sent one-shot Ok");
                         Ok(())
                     } else {
-                        tx.send(Err(Report::Error{id: 0})).expect("should sent one-shot Err");
+                        tx.send(Err(Report::Error{id: id_clone})).expect("should sent one-shot Err");
                         Err(())
                     }
                 }
-                Err(e) => {
-                    panic!("I can't see how or why we'd get here...");
+                Err(_e) => {
                     Err(())
                 }
             }
         }));
-        rx.map_err(|e| ())
+        rx.map_err(|_e| ())
     }))
 }
 
-pub fn get_seq(cmds: Vec<&'static str>) -> FutureSig {
+pub fn get_seq(group: TaskGroup) -> FutureSig {
+    let id_clone = group.id.clone();
     Box::new(lazy(move || {
         let track: Arc<Mutex<Vec<Result<Report, Report>>>> = Arc::new(Mutex::new(vec![]));
         let c1 = track.clone();
         let c2 = track.clone();
-        let c3 = track.clone();
 
-        let items = cmds
+        let items = group.items
             .into_iter()
-            .map(|cmd| create_item(cmd));
+            .map(|item| {
+                match item {
+                    Task::Item(item) => create_item(item),
+                    _ => unimplemented!()
+                }
+            });
 
         iter_ok(items)
             .for_each(move |this_future| {
@@ -85,16 +83,16 @@ pub fn get_seq(cmds: Vec<&'static str>) -> FutureSig {
                             }
                         }
                     })
-                    .map(|e| ())
+                    .map(|_e| ())
             })
-            .then(move |res| {
+            .then(move |_res| {
 
                 let next = c2.clone();
-                let mut reports = next.lock().unwrap();
+                let reports = next.lock().unwrap();
                 let all_valid = reports.iter().all(|x| x.is_ok());
 
                 if all_valid {
-                    Ok(Ok(Report::EndGroup{id: 1, reports: vec![]}))
+                    Ok(Ok(Report::EndGroup{id: id_clone, reports: reports.clone()}))
                 } else {
                     println!("propagating error :)");
                     Err(())
@@ -103,21 +101,27 @@ pub fn get_seq(cmds: Vec<&'static str>) -> FutureSig {
     }))
 }
 
-pub fn get_async_seq(cmds: Vec<&'static str>) -> FutureSig {
+pub fn get_async_seq(group: TaskGroup) -> FutureSig {
+    let id_clone = group.id.clone();
     Box::new(lazy(move || {
-        let items = cmds
+        let items = group.items
             .into_iter()
-            .map(|cmd| create_item(cmd));
+            .map(|item| {
+                match item {
+                    Task::Item(item) => create_item(item),
+                    _ => unimplemented!()
+                }
+            });
 
         futures::collect(items)
-            .then(|res| {
+            .then(move |res| {
                 let all_valid = match res {
                     Ok(items) => items.into_iter().all(|x| x.is_ok()),
                     Err(_) => false,
                 };
 
                 if all_valid {
-                    Ok(Ok(Report::EndGroup{id: 1, reports: vec![]}))
+                    Ok(Ok(Report::EndGroup{id: id_clone, reports: vec![]}))
                 } else {
                     Err(())
                 }
@@ -128,12 +132,26 @@ pub fn get_async_seq(cmds: Vec<&'static str>) -> FutureSig {
 pub fn exec() {
     tokio::run(lazy(|| {
 
-        let s = get_seq(vec!["echo 1"]);
-        let s2 = get_async_seq(vec!["echo 1"]);
-        let s3 = create_item("echo 3");
+        let s1 = get_seq(TaskGroup{
+            id: 0,
+            items: vec![
+                Task::Item(TaskItem{
+                    id: 1,
+                    cmd: "echo 1 && sleep 1 && echo 1.5".into(),
+                    fail: false
+                }),
+                Task::Item(TaskItem{
+                    id: 2,
+                    cmd: "echo 2".into(),
+                    fail: false
+                })
+            ],
+            run_mode: RunMode::Series,
+            fail: false
+        });
 
-        let chain = s.join(s2).join(s3).map(|val| {
-            println!("outgoing = {:?}", val);
+        let chain = s1.map(|val| {
+            println!("outgoing = {:#?}", val);
             ()
         }).map_err(|e| {
             println!("Err made it to the top = {:?}", e);
