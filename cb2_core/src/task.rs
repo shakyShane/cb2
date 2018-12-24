@@ -44,7 +44,7 @@ impl Task {
             .into_iter()
             .map(|seq_item| match seq_item {
                 TaskDef::CmdString(s) => Task::from_string(&s, &input),
-                TaskDef::TaskObj { command, ..} => Task::from_string(&command, &input),
+                TaskDef::TaskObj { command, .. } => Task::from_string(&command, &input),
                 TaskDef::TaskSeq(seq) => Task::from_seq(seq.to_vec(), RunMode::Parallel, &input),
                 _ => unimplemented!(),
             })
