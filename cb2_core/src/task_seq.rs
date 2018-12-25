@@ -40,7 +40,10 @@ pub fn task_seq(group: TaskGroup) -> FutureSig {
                                 next.push(Err(s));
                                 Err(())
                             }
-                            Err(_e) => Err(()),
+                            Err(e) => {
+                                next.push(Err(e));
+                                Err(())
+                            }
                         }
                     })
                     .map(|_e| ())
@@ -56,8 +59,10 @@ pub fn task_seq(group: TaskGroup) -> FutureSig {
                         reports: reports.clone(),
                     }))
                 } else {
-                    println!("propagating error :)");
-                    Err(())
+                    Err(Report::ErrorGroup {
+                        id: id_clone,
+                        reports: reports.clone(),
+                    })
                 }
             })
     }))

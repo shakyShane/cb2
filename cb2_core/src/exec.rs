@@ -6,9 +6,8 @@ use crate::task::{RunMode, Task};
 use crate::task_group::task_group;
 use crate::task_item::task_item;
 use crate::task_seq::task_seq;
-use uuid::Uuid;
 
-pub type FutureSig = Box<Future<Item = Result<Report, Report>, Error = ()> + Send>;
+pub type FutureSig = Box<Future<Item = Result<Report, Report>, Error = Report> + Send>;
 
 pub fn exec(task_tree: Task) {
     tokio::run(lazy(move || {
@@ -26,7 +25,7 @@ pub fn exec(task_tree: Task) {
                 ()
             })
             .map_err(|e| {
-                println!("Err made it to the top = {:?}", e);
+                println!("Err made it to the top = {:#?}", e);
                 ()
             });
 

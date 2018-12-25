@@ -9,6 +9,7 @@ use std::process::Command;
 pub fn task_item(task_item: TaskItem) -> FutureSig {
     let cmd_clone = task_item.cmd.clone();
     let id_clone = task_item.id.clone();
+    let id_clone2 = task_item.id.clone();
     Box::new(lazy(move || {
         let (tx, rx) = oneshot::channel();
         tokio::spawn(lazy(move || {
@@ -29,6 +30,6 @@ pub fn task_item(task_item: TaskItem) -> FutureSig {
                 Err(_e) => Err(()),
             }
         }));
-        rx.map_err(|_e| ())
+        rx.map_err(move |_e| Report::Error { id: id_clone2 })
     }))
 }

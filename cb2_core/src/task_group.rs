@@ -18,18 +18,24 @@ pub fn task_group(group: TaskGroup) -> FutureSig {
         });
 
         futures::collect(items).then(move |res| {
-            let all_valid = match res {
-                Ok(items) => items.into_iter().all(|x| x.is_ok()),
-                Err(_) => false,
+            let (items, all_valid) = match res.clone() {
+                Ok(items) => {
+                    let valid = items.iter().all(|x| x.is_ok());
+                    (items, valid)
+                }
+                Err(err_report) => (vec![Err(err_report)], false),
             };
 
             if all_valid {
                 Ok(Ok(Report::EndGroup {
                     id: id_clone,
-                    reports: vec![],
+                    reports: items.clone(),
                 }))
             } else {
-                Err(())
+                Err(Report::ErrorGroup {
+                    id: id_clone,
+                    reports: items.clone(),
+                })
             }
         })
     }))
