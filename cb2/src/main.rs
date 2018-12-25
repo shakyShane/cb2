@@ -18,7 +18,9 @@ fn main() {
 fn run(input: Input, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
     let lookups = select(&input, &names)?;
     let task_tree = Task::generate_series(&input, &names);
-    //    let task_tree = Task::generate_par(&input, &names);
-    let _e = exec::exec(task_tree);
+
+    println!("{:#?}", task_tree);
+    println!("{}", task_tree);
+
     Ok((input, lookups))
 }

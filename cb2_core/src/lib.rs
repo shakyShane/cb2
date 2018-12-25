@@ -23,3 +23,4 @@ pub mod task_item;
 pub mod task_lookup;
 pub mod task_lookup_error;
 pub mod task_seq;
+pub mod archy;

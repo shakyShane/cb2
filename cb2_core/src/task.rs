@@ -1,6 +1,11 @@
 use crate::input::Input;
 use crate::input::TaskDef;
 use uuid::Uuid;
+use std::fmt;
+use std::fmt::Formatter;
+use crate::archy::Node;
+use crate::archy::archy;
+use crate::archy::ArchyOpts;
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum RunMode {
@@ -29,7 +34,60 @@ pub enum Task {
     Group(TaskGroup),
 }
 
+impl fmt::Display for TaskItem {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.cmd)
+    }
+}
+
+impl fmt::Display for Task {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let output = match self {
+            Task::Item(item) => item.cmd.clone(),
+            Task::Group(group) => {
+                format!("{}", archy(&Node::new(group_name(&group), to_archy_nodes(&group.items)), "", &ArchyOpts::new()))
+            },
+        };
+        write!(f, "{}", output)
+    }
+}
+
+fn to_archy_nodes(group: &Vec<Task>) -> Vec<Node> {
+//    group.items.iter().map(|item| {
+//        match item {
+//            Task::Item(task_item) => vec![Node::new(task_item.cmd.clone(), vec![])],
+//            Task::Group(group) => vec![]
+//        }
+//    }).collect::<Vec<Node>>()
+//    vec![
+//        Node::new("echo ls", vec![]),
+//        Node::new("echo ls", vec![]),
+//        Node::new("echo ls", vec![]),
+//    ]
+    group.into_iter().map(|task| {
+        match task {
+            Task::Item(item) => Node::new(item.cmd.clone(), vec![]),
+            Task::Group(group) => Node::new(group_name(group), to_archy_nodes(&group.items)),
+        }
+    }).collect()
+}
+
+fn display_name(task: &Task) -> String {
+    match task {
+        Task::Item(item) => item.cmd.clone(),
+        Task::Group(group) => group_name(&group),
+    }
+}
+
+fn group_name(group: &TaskGroup) -> String {
+    match group.run_mode {
+        RunMode::Series => "[TaskSeq]".to_string(),
+        RunMode::Parallel => "[TaskGroup]".to_string(),
+    }
+}
+
 impl Task {
+
     pub fn from_string(string: &str, input: &Input) -> Task {
         match &string[0..1] {
             "@" => Task::get_task_item(&input, &string[1..string.len()]),
