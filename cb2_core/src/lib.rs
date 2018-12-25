@@ -11,6 +11,8 @@ extern crate serde_yaml;
 extern crate from_file_derive;
 extern crate from_file;
 
+extern crate uuid;
+
 pub mod input;
 //pub mod runner;
 pub mod exec;

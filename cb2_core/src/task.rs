@@ -1,5 +1,6 @@
 use crate::input::Input;
 use crate::input::TaskDef;
+use uuid::Uuid;
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum RunMode {
@@ -9,14 +10,14 @@ pub enum RunMode {
 
 #[derive(Debug)]
 pub struct TaskItem {
-    pub id: usize,
+    pub id: String,
     pub cmd: String,
     pub fail: bool,
 }
 
 #[derive(Debug)]
 pub struct TaskGroup {
-    pub id: usize,
+    pub id: String,
     pub items: Vec<Task>,
     pub run_mode: RunMode,
     pub fail: bool,
@@ -34,7 +35,7 @@ impl Task {
             "@" => Task::get_task_item(&input, &string[1..string.len()]),
             _ => Task::Item(TaskItem {
                 fail: false,
-                id: 1,
+                id: uuid(),
                 cmd: string.to_string(),
             }),
         }
@@ -50,7 +51,7 @@ impl Task {
             })
             .collect::<Vec<Task>>();
         Task::Group(TaskGroup {
-            id: 0,
+            id: uuid(),
             items: seq_items,
             run_mode,
             fail: true,
@@ -63,7 +64,7 @@ impl Task {
             .collect::<Vec<Task>>();
 
         Task::Group(TaskGroup {
-            id: 0,
+            id: uuid(),
             items: parsed,
             run_mode: RunMode::Series,
             fail: true,
@@ -76,7 +77,7 @@ impl Task {
             .collect::<Vec<Task>>();
 
         Task::Group(TaskGroup {
-            id: 0,
+            id: uuid(),
             items: parsed,
             run_mode: RunMode::Parallel,
             fail: false,
@@ -97,4 +98,10 @@ impl Task {
             })
             .unwrap()
     }
+}
+
+fn uuid() -> String {
+    let id = Uuid::new_v4().to_string();
+    let slice = &id[0..8];
+    slice.to_string()
 }

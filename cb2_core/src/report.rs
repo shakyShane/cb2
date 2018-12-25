@@ -2,17 +2,17 @@
 pub enum Report {
     Unknown,
     End {
-        id: usize,
+        id: String,
     },
     EndGroup {
-        id: usize,
+        id: String,
         reports: Vec<Result<Report, Report>>,
     },
     Error {
-        id: usize,
+        id: String,
     },
     ErrorGroup {
-        id: usize,
+        id: String,
         reports: Vec<Result<Report, Report>>,
     },
 }

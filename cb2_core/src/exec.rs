@@ -6,6 +6,7 @@ use crate::task::{RunMode, Task};
 use crate::task_group::task_group;
 use crate::task_item::task_item;
 use crate::task_seq::task_seq;
+use uuid::Uuid;
 
 pub type FutureSig = Box<Future<Item = Result<Report, Report>, Error = ()> + Send>;
 
@@ -21,7 +22,7 @@ pub fn exec(task_tree: Task) {
 
         let chain = as_future
             .map(|val| {
-                println!("outgoing = {:?}", val);
+                println!("outgoing = {:#?}", val);
                 ()
             })
             .map_err(|e| {
@@ -30,13 +31,6 @@ pub fn exec(task_tree: Task) {
             });
 
         tokio::spawn(chain);
-        //        tokio::spawn(chain.map(|x| ()).map_err(|e| ()));
-
-        //        let output = vec![
-        //            item("echo before && sleep 1 && echo after"),
-        //            item("echos 1"),
-        //            item("echo 2"),
-        //        ].iter().map(stream::iter_ok).flatten_stream();
 
         Ok(())
     }));
