@@ -8,6 +8,15 @@ use ansi_term::Style;
 use crate::archy::Node;
 use crate::archy::archy;
 use crate::archy::ArchyOpts;
+use std::collections::HashMap;
+use crate::report::SimpleReport;
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+pub enum Status {
+    NotStarted,
+    Error,
+    Success,
+}
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum RunMode {
@@ -21,6 +30,7 @@ pub struct TaskItem {
     pub cmd: String,
     pub fail: bool,
     pub name: Option<Name>,
+    pub status: Status
 }
 
 #[derive(Debug, Clone)]
@@ -29,7 +39,8 @@ pub struct TaskGroup {
     pub items: Vec<Task>,
     pub run_mode: RunMode,
     pub fail: bool,
-    pub name: Option<Name>
+    pub name: Option<Name>,
+    pub status: Status
 }
 
 #[derive(Debug, Clone)]
@@ -118,6 +129,26 @@ fn group_name(group: &TaskGroup) -> String {
 
 impl Task {
 
+    pub fn overlay_group(task: &mut TaskGroup, reports: HashMap<String, SimpleReport>) {
+
+    }
+
+    pub fn overlay_item(task: &mut TaskItem, reports: HashMap<String, SimpleReport>) {
+
+    }
+
+    pub fn overlay(mut self, reports: HashMap<String, SimpleReport>) -> Task {
+        let output = match self {
+            Task::Item(ref mut item) => {
+                Task::overlay_item(item, reports);
+            },
+            Task::Group(ref mut group) => {
+                Task::overlay_group(group, reports);
+            },
+        };
+        self
+    }
+
     pub fn from_string(string: &str, alias: Option<Name>, input: &Input) -> Task {
         match &string[0..1] {
             "@" => Task::get_task_item(&input, &string[1..string.len()]),
@@ -125,7 +156,8 @@ impl Task {
                 fail: false,
                 id: uuid(),
                 cmd: string.to_string(),
-                name: alias
+                name: alias,
+                status: Status::NotStarted,
             }),
         }
     }
@@ -144,7 +176,8 @@ impl Task {
             items: seq_items,
             run_mode,
             fail: true,
-            name: alias
+            name: alias,
+            status: Status::NotStarted,
         })
     }
     pub fn generate_series(input: &Input, _names: &Vec<&str>) -> Task {
@@ -161,7 +194,8 @@ impl Task {
             items: parsed,
             run_mode: RunMode::Series,
             fail: true,
-            name: Some(Name::String(top_level_msg))
+            name: Some(Name::String(top_level_msg)),
+            status: Status::NotStarted,
         })
     }
     pub fn generate_par(input: &Input, _names: &Vec<&str>) -> Task {
@@ -178,7 +212,8 @@ impl Task {
             items: parsed,
             run_mode: RunMode::Parallel,
             fail: false,
-            name: Some(Name::String(top_level_msg))
+            name: Some(Name::String(top_level_msg)),
+            status: Status::NotStarted,
         })
     }
     pub fn get_task_item(input: &Input, name: &str) -> Task {

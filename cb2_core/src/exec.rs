@@ -32,7 +32,7 @@ pub fn exec(task_tree: Task) {
                 println!("{:#?}", as_hashmap);
 //                println!("\n\n");
                 println!("{:#?}", task_tree);
-                println!("{}", task_tree);
+                println!("{}", task_tree.clone().overlay(as_hashmap));
                 ()
             });
 
