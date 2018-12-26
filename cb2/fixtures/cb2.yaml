@@ -1,9 +1,11 @@
 tasks:
 
+  build2: ["@docker", "@client", "@server", "@build", "@p"]
   # Example of accepting a sequence of strings
   build:
-    - "@t2"
-    - ech
+    - echo 1
+    - echo 2
+    - echo 3
 
   t1: sleep 1 && echo 1
   t2: sleep 1 && echo 2
@@ -13,11 +15,13 @@ tasks:
   t6: sleep 1 && echo 6
 
   p:
-    - echo p1
-    - echo p2
-    - echo p3
-    - echo p4
-    - echo p5
+    run_mode: Parallel
+    tasks:
+      - echo p1
+      - echo p2
+      - echo p3
+      - echo p4
+      - echo p5
 
   # Example of accepting a map
   docker:

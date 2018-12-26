@@ -18,6 +18,7 @@ pub struct TaskItem {
     pub id: String,
     pub cmd: String,
     pub fail: bool,
+    pub name: Option<Name>,
 }
 
 #[derive(Debug)]
@@ -26,12 +27,31 @@ pub struct TaskGroup {
     pub items: Vec<Task>,
     pub run_mode: RunMode,
     pub fail: bool,
+    pub name: Option<Name>
 }
 
 #[derive(Debug)]
 pub enum Task {
     Item(TaskItem),
     Group(TaskGroup),
+}
+
+#[derive(Debug, Clone)]
+pub enum Name {
+    Alias(String),
+    String(String),
+    Empty,
+}
+
+impl fmt::Display for Name {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let output = match self {
+            Name::Alias(alias) => format!("@{}: ", alias),
+            Name::String(string) => string.to_string(),
+            Name::Empty => String::new(),
+        };
+        write!(f, "{}", output)
+    }
 }
 
 impl fmt::Display for TaskItem {
@@ -53,20 +73,9 @@ impl fmt::Display for Task {
 }
 
 fn to_archy_nodes(group: &Vec<Task>) -> Vec<Node> {
-//    group.items.iter().map(|item| {
-//        match item {
-//            Task::Item(task_item) => vec![Node::new(task_item.cmd.clone(), vec![])],
-//            Task::Group(group) => vec![]
-//        }
-//    }).collect::<Vec<Node>>()
-//    vec![
-//        Node::new("echo ls", vec![]),
-//        Node::new("echo ls", vec![]),
-//        Node::new("echo ls", vec![]),
-//    ]
     group.into_iter().map(|task| {
         match task {
-            Task::Item(item) => Node::new(item.cmd.clone(), vec![]),
+            Task::Item(item) => Node::new(item_display(item), vec![]),
             Task::Group(group) => Node::new(group_name(group), to_archy_nodes(&group.items)),
         }
     }).collect()
@@ -74,37 +83,49 @@ fn to_archy_nodes(group: &Vec<Task>) -> Vec<Node> {
 
 fn display_name(task: &Task) -> String {
     match task {
-        Task::Item(item) => item.cmd.clone(),
+        Task::Item(item) => item_display(&item),
         Task::Group(group) => group_name(&group),
     }
 }
-
+fn item_display(item: &TaskItem) -> String {
+    match item.name.clone() {
+        Some(Name::Alias(s)) => {
+            format!("@{}:\n{}", s, item.cmd)
+        },
+        Some(Name::String(s)) => {
+            format!("{}\n{}", s, item.cmd)
+        },
+        Some(Name::Empty) | None => item.cmd.to_string(),
+    }
+}
 fn group_name(group: &TaskGroup) -> String {
+    let name = group.name.clone().unwrap_or(Name::Empty);
     match group.run_mode {
-        RunMode::Series => "[TaskSeq]".to_string(),
-        RunMode::Parallel => "[TaskGroup]".to_string(),
+        RunMode::Series => format!("{}<sequence>", name),
+        RunMode::Parallel => format!("{}<group>", name),
     }
 }
 
 impl Task {
 
-    pub fn from_string(string: &str, input: &Input) -> Task {
+    pub fn from_string(string: &str, alias: Option<Name>, input: &Input) -> Task {
         match &string[0..1] {
             "@" => Task::get_task_item(&input, &string[1..string.len()]),
             _ => Task::Item(TaskItem {
                 fail: false,
                 id: uuid(),
                 cmd: string.to_string(),
+                name: alias
             }),
         }
     }
-    pub fn from_seq(seq: Vec<TaskDef>, run_mode: RunMode, input: &Input) -> Task {
+    pub fn from_seq(seq: Vec<TaskDef>, alias: Option<Name>, run_mode: RunMode, input: &Input) -> Task {
         let seq_items = seq
             .into_iter()
             .map(|seq_item| match seq_item {
-                TaskDef::CmdString(s) => Task::from_string(&s, &input),
-                TaskDef::TaskObj { command, .. } => Task::from_string(&command, &input),
-                TaskDef::TaskSeq(seq) => Task::from_seq(seq.to_vec(), RunMode::Parallel, &input),
+                TaskDef::CmdString(s) => Task::from_string(&s, None, &input),
+                TaskDef::TaskObj { command, .. } => Task::from_string(&command, None, &input),
+                TaskDef::TaskSeq(seq) => Task::from_seq(seq.to_vec(), None, RunMode::Parallel, &input),
                 _ => unimplemented!(),
             })
             .collect::<Vec<Task>>();
@@ -113,6 +134,7 @@ impl Task {
             items: seq_items,
             run_mode,
             fail: true,
+            name: alias
         })
     }
     pub fn generate_series(input: &Input, _names: &Vec<&str>) -> Task {
@@ -121,11 +143,15 @@ impl Task {
             .map(|name| Task::get_task_item(&input, name))
             .collect::<Vec<Task>>();
 
+        let top_level_names = _names.iter().map(|s| s.to_string()).collect::<Vec<String>>().join(", ");
+        let top_level_msg = format!("Input: {} ", top_level_names);
+
         Task::Group(TaskGroup {
             id: uuid(),
             items: parsed,
             run_mode: RunMode::Series,
             fail: true,
+            name: Some(Name::String(top_level_msg))
         })
     }
     pub fn generate_par(input: &Input, _names: &Vec<&str>) -> Task {
@@ -134,25 +160,30 @@ impl Task {
             .map(|name| Task::get_task_item(&input, name))
             .collect::<Vec<Task>>();
 
+        let top_level_names = _names.iter().map(|s| s.to_string()).collect::<Vec<String>>().join(", ");
+        let top_level_msg = format!("Input: {} ", top_level_names);
+
         Task::Group(TaskGroup {
             id: uuid(),
             items: parsed,
             run_mode: RunMode::Parallel,
             fail: false,
+            name: Some(Name::String(top_level_msg))
         })
     }
     pub fn get_task_item(input: &Input, name: &str) -> Task {
+        let alias = Name::Alias(name.to_string());
         input
             .tasks
             .get(name)
             .map(|item| match item {
-                TaskDef::TaskSeq(seq) => Task::from_seq(seq.to_vec(), RunMode::Series, &input),
+                TaskDef::TaskSeq(seq) => Task::from_seq(seq.to_vec(), Some(alias), RunMode::Series, &input),
                 TaskDef::TaskSeqObj { run_mode, tasks } => {
                     let run_mode_clone = run_mode.clone().unwrap_or(RunMode::Series);
-                    Task::from_seq(tasks.to_vec(), run_mode_clone, &input)
+                    Task::from_seq(tasks.to_vec(), Some(alias), run_mode_clone, &input)
                 }
-                TaskDef::CmdString(s) => Task::from_string(s, &input),
-                TaskDef::TaskObj { command, .. } => Task::from_string(command, &input),
+                TaskDef::CmdString(s) => Task::from_string(s, Some(alias), &input),
+                TaskDef::TaskObj { command, .. } => Task::from_string(command, Some(alias), &input),
             })
             .unwrap()
     }
