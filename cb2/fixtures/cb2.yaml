@@ -21,7 +21,7 @@ tasks:
       - echo p1
       - echo p2
       - echo p3
-      - echo p4
+      - ech p4
       - echo p5
 
   # Example of accepting a map

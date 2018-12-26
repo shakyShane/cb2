@@ -29,10 +29,10 @@ pub fn exec(task_tree: Task) {
             .map_err(move |report| {
 //                println!("Err made it to the top = {:#?}", report);
                 let as_hashmap = report.simplify();
-                println!("{:#?}", as_hashmap);
+//                println!("{:#?}", as_hashmap);
 //                println!("\n\n");
-                println!("{:#?}", task_tree);
-                println!("{}", task_tree.clone().overlay(as_hashmap));
+//                println!("{:#?}", task_tree);
+                println!("{}", task_tree.clone().get_tree(&as_hashmap));
                 ()
             });
 

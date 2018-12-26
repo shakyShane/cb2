@@ -4,7 +4,7 @@ use cb2_core::task::Task;
 use cb2_core::task_lookup::{select, TaskError, TaskLookup};
 
 fn main() {
-    let args = vec!["build"];
+    let args = vec!["p", "build"];
 
     match Input::read_from_file("cb2/fixtures/cb2.yaml") {
         Ok(input) => match run(input, args) {

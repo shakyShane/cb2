@@ -3,20 +3,13 @@ use crate::input::TaskDef;
 use uuid::Uuid;
 use std::fmt;
 use std::fmt::Formatter;
-use ansi_term::Colour::{Blue, Yellow};
+use ansi_term::Colour::{Blue, Yellow, Red, Green};
 use ansi_term::Style;
 use crate::archy::Node;
 use crate::archy::archy;
 use crate::archy::ArchyOpts;
 use std::collections::HashMap;
 use crate::report::SimpleReport;
-
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-pub enum Status {
-    NotStarted,
-    Error,
-    Success,
-}
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum RunMode {
@@ -30,7 +23,6 @@ pub struct TaskItem {
     pub cmd: String,
     pub fail: bool,
     pub name: Option<Name>,
-    pub status: Status
 }
 
 #[derive(Debug, Clone)]
@@ -40,7 +32,6 @@ pub struct TaskGroup {
     pub run_mode: RunMode,
     pub fail: bool,
     pub name: Option<Name>,
-    pub status: Status
 }
 
 #[derive(Debug, Clone)]
@@ -67,86 +58,81 @@ impl fmt::Display for Name {
     }
 }
 
-impl fmt::Display for TaskItem {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", self.cmd)
-    }
-}
-
-impl fmt::Display for Task {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let output = match self {
-            Task::Item(item) => item.cmd.clone(),
-            Task::Group(group) => {
-                format!("{}", archy(&Node::new(group_name(&group), to_archy_nodes(&group.items)), "", &ArchyOpts::new()))
-            },
-        };
-        write!(f, "{}", output)
-    }
-}
-
-fn to_archy_nodes(group: &Vec<Task>) -> Vec<Node> {
+fn to_archy_nodes(group: &Vec<Task>, reports: &HashMap<String, SimpleReport>) -> Vec<Node> {
     group.into_iter().map(|task| {
         match task {
-            Task::Item(item) => Node::new(item_display(item), vec![]),
-            Task::Group(group) => Node::new(group_name(group), to_archy_nodes(&group.items)),
+            Task::Item(item) => Node::new(item_display(item, reports), vec![]),
+            Task::Group(group) => Node::new(group_name(group, reports), to_archy_nodes(&group.items, reports)),
         }
     }).collect()
 }
 
-fn display_name(task: &Task) -> String {
-    match task {
-        Task::Item(item) => item_display(&item),
-        Task::Group(group) => group_name(&group),
-    }
-}
-fn item_display(item: &TaskItem) -> String {
+fn item_display(item: &TaskItem, reports: &HashMap<String, SimpleReport>) -> String {
+    let status = item_status(item, reports);
     match item.name.clone() {
         Some(Name::Alias(s)) => {
-            format!("{}{}:\n{}", Style::default().bold().paint("@"), Style::default().bold().paint(s), item.cmd)
+            format!("{} {}{}:\n{}",
+                status,
+                Style::default().bold().paint("@"),
+                Style::default().bold().paint(s),
+                item.cmd,
+            )
         },
         Some(Name::String(s)) => {
-            format!("{}\n{}", s, item.cmd)
+            format!("{} {}\n{}", status, s, item.cmd)
         },
-        Some(Name::Empty) | None => item.cmd.to_string(),
+        Some(Name::Empty) | None => format!("{} {}", status, item.cmd.to_string()),
     }
 }
-fn group_name(group: &TaskGroup) -> String {
+
+fn group_name(group: &TaskGroup, reports: &HashMap<String, SimpleReport>) -> String {
+    let status = group_status(group, reports);
     let run_mode = match group.run_mode {
         RunMode::Series => format!("<sequence>"),
-        RunMode::Parallel => format!("<group>"),
+        RunMode::Parallel => format!("<parallel>"),
     };
     match group.name.clone() {
         Some(Name::Alias(s)) => {
-            format!("{}{} {}", Style::default().bold().paint("@"), Style::default().bold().paint(s), Blue.paint(run_mode))
+            format!("{} {}{} {}", status, Style::default().bold().paint("@"), Style::default().bold().paint(s), Blue.paint(run_mode))
         },
         Some(Name::String(s)) => {
-            format!("{}{}", s, Blue.paint(run_mode))
+            format!("{} {}{}", status, s, Blue.paint(run_mode))
         },
-        Some(Name::Empty) | None => format!("{}", Blue.paint(run_mode)),
+        Some(Name::Empty) | None => format!("{} {}", status, Blue.paint(run_mode)),
     }
+}
+
+fn group_status(group: &TaskGroup, reports: &HashMap<String, SimpleReport>) -> String {
+    reports.get(&group.id).map_or_else(|| {
+        format!("{}", Yellow.paint("-"))
+    }, |report| {
+        match report {
+            SimpleReport::Ok{..} => format!("{}", Green.paint("✓")),
+            SimpleReport::Err{..} => format!("{}", Red.paint("x")),
+        }
+    })
+}
+
+fn item_status(task: &TaskItem, reports: &HashMap<String, SimpleReport>) -> String {
+    reports.get(&task.id).map_or_else(|| {
+        format!("{}", Yellow.paint("-"))
+    }, |report| {
+        match report {
+            SimpleReport::Ok{..} => format!("{}", Green.paint("✓")),
+            SimpleReport::Err{..} => format!("{}", Red.paint("x")),
+        }
+    })
 }
 
 impl Task {
 
-    pub fn overlay_group(task: &mut TaskGroup, reports: HashMap<String, SimpleReport>) {
-
-    }
-
-    pub fn overlay_item(task: &mut TaskItem, reports: HashMap<String, SimpleReport>) {
-
-    }
-
-    pub fn overlay(mut self, reports: HashMap<String, SimpleReport>) -> Task {
-        let output = match self {
-            Task::Item(ref mut item) => {
-                Task::overlay_item(item, reports);
-            },
-            Task::Group(ref mut group) => {
-                Task::overlay_group(group, reports);
-            },
-        };
-        self
+    pub fn get_tree(&self, reports: &HashMap<String, SimpleReport>) -> String {
+        match self {
+            Task::Item(item) => item_display(item, reports),
+            Task::Group(group) => {
+                format!("{}", archy(&Node::new(group_name(&group, reports), to_archy_nodes(&group.items, reports)), "", &ArchyOpts::new()))
+            }
+        }
     }
 
     pub fn from_string(string: &str, alias: Option<Name>, input: &Input) -> Task {
@@ -157,7 +143,6 @@ impl Task {
                 id: uuid(),
                 cmd: string.to_string(),
                 name: alias,
-                status: Status::NotStarted,
             }),
         }
     }
@@ -177,7 +162,6 @@ impl Task {
             run_mode,
             fail: true,
             name: alias,
-            status: Status::NotStarted,
         })
     }
     pub fn generate_series(input: &Input, _names: &Vec<&str>) -> Task {
@@ -195,7 +179,6 @@ impl Task {
             run_mode: RunMode::Series,
             fail: true,
             name: Some(Name::String(top_level_msg)),
-            status: Status::NotStarted,
         })
     }
     pub fn generate_par(input: &Input, _names: &Vec<&str>) -> Task {
@@ -213,7 +196,6 @@ impl Task {
             run_mode: RunMode::Parallel,
             fail: false,
             name: Some(Name::String(top_level_msg)),
-            status: Status::NotStarted,
         })
     }
     pub fn get_task_item(input: &Input, name: &str) -> Task {
