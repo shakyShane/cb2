@@ -25,7 +25,7 @@ impl Node {
 
 #[derive(Debug)]
 pub struct ArchyOpts {
-    pub unicode: bool
+    pub unicode: bool,
 }
 
 impl ArchyOpts {
@@ -40,22 +40,48 @@ impl ArchyOpts {
 
 impl Default for ArchyOpts {
     fn default() -> Self {
-        ArchyOpts {
-            unicode: true
-        }
+        ArchyOpts { unicode: true }
     }
 }
 
 pub fn archy(input: &Node, prefix: &str, opts: &ArchyOpts) -> String {
-    let get_char = |input| {
-        match input {
-            "│" => if opts.unicode { "│" } else { "|" },
-            "└" => if opts.unicode { "└" } else { "`" },
-            "├" => if opts.unicode { "├" } else { "+" },
-            "─" => if opts.unicode { "─" } else { "-" },
-            "┬" => if opts.unicode { "┬" } else { "-" },
-            _ => "-"
+    let get_char = |input| match input {
+        "│" => {
+            if opts.unicode {
+                "│"
+            } else {
+                "|"
+            }
         }
+        "└" => {
+            if opts.unicode {
+                "└"
+            } else {
+                "`"
+            }
+        }
+        "├" => {
+            if opts.unicode {
+                "├"
+            } else {
+                "+"
+            }
+        }
+        "─" => {
+            if opts.unicode {
+                "─"
+            } else {
+                "-"
+            }
+        }
+        "┬" => {
+            if opts.unicode {
+                "┬"
+            } else {
+                "-"
+            }
+        }
+        _ => "-",
     };
     let lines = input.label.lines().collect::<Vec<&str>>();
     let node_len = input.nodes.len();
@@ -63,29 +89,44 @@ pub fn archy(input: &Node, prefix: &str, opts: &ArchyOpts) -> String {
     let splitter = format!("\n{}{} ", prefix, suf);
     let joined = lines.join(splitter.as_str());
 
-    let child = input.nodes.iter().enumerate().map(|(ix, node)| {
-        let last = ix == (node_len - 1);
-        let more = node.nodes.len() > 0;
-        let prefix_ = format!("{}{} ", prefix, if last { " " } else { get_char("│") });
-        let next_string = &archy(&node, prefix_.as_str(), &opts);
-        let next_string_indices = next_string.char_indices();
+    let child = input
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(ix, node)| {
+            let last = ix == (node_len - 1);
+            let more = node.nodes.len() > 0;
+            let prefix_ = format!("{}{} ", prefix, if last { " " } else { get_char("│") });
+            let next_string = &archy(&node, prefix_.as_str(), &opts);
+            let next_string_indices = next_string.char_indices();
 
-        let target_num = prefix.char_indices().count() + 2;
+            let target_num = prefix.char_indices().count() + 2;
 
-        let next_output = next_string_indices.skip(target_num)
-            .map(|(i, char)| char.to_string())
-            .collect::<Vec<String>>()
-            .join("");
+            let next_output = next_string_indices
+                .skip(target_num)
+                .map(|(i, char)| char.to_string())
+                .collect::<Vec<String>>()
+                .join("");
 
-        vec![
-            prefix,
-            if last { get_char("└") } else { get_char("├") },
-            get_char("─"),
-            if more { get_char("┬") } else { get_char("─") },
-            " ",
-            next_output.as_str()
-        ].join("")
-    }).collect::<Vec<String>>();
+            vec![
+                prefix,
+                if last {
+                    get_char("└")
+                } else {
+                    get_char("├")
+                },
+                get_char("─"),
+                if more {
+                    get_char("┬")
+                } else {
+                    get_char("─")
+                },
+                " ",
+                next_output.as_str(),
+            ]
+            .join("")
+        })
+        .collect::<Vec<String>>();
 
     format!("{}{}\n{}", prefix, joined, child.join(""))
 }
@@ -99,44 +140,56 @@ fn single_node() {
 
 #[test]
 fn multi_node() {
-    let node = Node::new("first", vec![
-        Node::new("second", vec![]),
-        Node::new("third", vec![]),
-    ]);
+    let node = Node::new(
+        "first",
+        vec![Node::new("second", vec![]), Node::new("third", vec![])],
+    );
     let opts = ArchyOpts::new();
-    assert_eq!("first
+    assert_eq!(
+        "first
 ├── second
-└── third\n", archy(&node, "", &opts));
+└── third\n",
+        archy(&node, "", &opts)
+    );
 }
 
 #[test]
 fn multi_level() {
-    let node = Node::new("first", vec![
-        Node::new("second", vec![
-            Node::new("third", vec![]),
-        ]),
-    ]);
+    let node = Node::new(
+        "first",
+        vec![Node::new("second", vec![Node::new("third", vec![])])],
+    );
     let opts = ArchyOpts::new();
-    assert_eq!("first
+    assert_eq!(
+        "first
 └─┬ second
-  └── third\n", archy(&node, "", &opts));
+  └── third\n",
+        archy(&node, "", &opts)
+    );
 }
 
 #[test]
 fn multi_line_label() {
-    let node = Node::new("first", vec![
-        Node::new("second", vec![
-            Node::new("third\nwith\nmultiple\nlines", vec![]),
-            Node::new("forth", vec![]),
-        ]),
-    ]);
+    let node = Node::new(
+        "first",
+        vec![Node::new(
+            "second",
+            vec![
+                Node::new("third\nwith\nmultiple\nlines", vec![]),
+                Node::new("forth", vec![]),
+            ],
+        )],
+    );
     let opts = ArchyOpts::new();
     println!("{}", archy(&node, "", &opts));
-    assert_eq!("first
+    assert_eq!(
+        "first
 └─┬ second
   ├── third
   │   with
   │   multiple
   │   lines
-  └── forth\n", archy(&node, "", &opts));
+  └── forth\n",
+        archy(&node, "", &opts)
+    );
 }

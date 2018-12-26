@@ -5,6 +5,7 @@ use futures::future::lazy;
 use futures::sync::oneshot;
 use futures::Future;
 use std::process::Command;
+use std::process::Stdio;
 
 pub fn task_item(task_item: TaskItem) -> FutureSig {
     let cmd_clone = task_item.cmd.clone();
@@ -15,6 +16,8 @@ pub fn task_item(task_item: TaskItem) -> FutureSig {
         tokio::spawn(lazy(move || {
             let mut child = Command::new("sh");
             child.arg("-c").arg(cmd_clone);
+            child.stdin(Stdio::inherit());
+            child.stdout(Stdio::inherit());
             match child.status() {
                 Ok(s) => {
                     if s.success() {
