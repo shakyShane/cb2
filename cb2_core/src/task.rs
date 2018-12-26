@@ -3,6 +3,8 @@ use crate::input::TaskDef;
 use uuid::Uuid;
 use std::fmt;
 use std::fmt::Formatter;
+use ansi_term::Colour::{Blue, Yellow};
+use ansi_term::Style;
 use crate::archy::Node;
 use crate::archy::archy;
 use crate::archy::ArchyOpts;
@@ -90,7 +92,7 @@ fn display_name(task: &Task) -> String {
 fn item_display(item: &TaskItem) -> String {
     match item.name.clone() {
         Some(Name::Alias(s)) => {
-            format!("@{}:\n{}", s, item.cmd)
+            format!("{}{}:\n{}", Style::default().bold().paint("@"), Style::default().bold().paint(s), item.cmd)
         },
         Some(Name::String(s)) => {
             format!("{}\n{}", s, item.cmd)
@@ -99,10 +101,18 @@ fn item_display(item: &TaskItem) -> String {
     }
 }
 fn group_name(group: &TaskGroup) -> String {
-    let name = group.name.clone().unwrap_or(Name::Empty);
-    match group.run_mode {
-        RunMode::Series => format!("{}<sequence>", name),
-        RunMode::Parallel => format!("{}<group>", name),
+    let run_mode = match group.run_mode {
+        RunMode::Series => format!("<sequence>"),
+        RunMode::Parallel => format!("<group>"),
+    };
+    match group.name.clone() {
+        Some(Name::Alias(s)) => {
+            format!("{}{} {}", Style::default().bold().paint("@"), Style::default().bold().paint(s), Blue.paint(run_mode))
+        },
+        Some(Name::String(s)) => {
+            format!("{}{}", s, Blue.paint(run_mode))
+        },
+        Some(Name::Empty) | None => format!("{}", Blue.paint(run_mode)),
     }
 }
 
