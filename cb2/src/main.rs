@@ -20,8 +20,7 @@ fn run(input: Input, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskE
     let task_tree = Task::generate_series(&input, &names);
 //    let task_tree = Task::generate_par(&input, &names);
 
-//    println!("{:#?}", task_tree);
-    println!("{}", task_tree);
+    let _ = exec::exec(task_tree);
 
     Ok((input, lookups))
 }

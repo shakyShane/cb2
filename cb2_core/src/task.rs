@@ -15,7 +15,7 @@ pub enum RunMode {
     Parallel,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TaskItem {
     pub id: String,
     pub cmd: String,
@@ -23,7 +23,7 @@ pub struct TaskItem {
     pub name: Option<Name>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TaskGroup {
     pub id: String,
     pub items: Vec<Task>,
@@ -32,7 +32,7 @@ pub struct TaskGroup {
     pub name: Option<Name>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Task {
     Item(TaskItem),
     Group(TaskGroup),

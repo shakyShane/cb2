@@ -4,8 +4,9 @@ tasks:
   # Example of accepting a sequence of strings
   build:
     - echo 1
-    - ["echo 1", "echo 2"]
-    - echo 3
+    - echo 2
+    - ech
+    - ech 3
 
   t1: sleep 1 && echo 1
   t2: sleep 1 && echo 2
