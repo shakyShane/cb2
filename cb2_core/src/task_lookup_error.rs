@@ -26,3 +26,14 @@ fn print_path(path: &Vec<PathItem>) -> String {
         .collect::<Vec<String>>()
         .join(" -> ")
 }
+
+#[test]
+fn test_print_path() {
+    let path_parts = vec![
+        PathItem::String("build".into()),
+        PathItem::Index(2),
+        PathItem::String("echo hello".into()),
+    ];
+    let printed = print_path(&path_parts);
+    println!("{}", printed);
+}
