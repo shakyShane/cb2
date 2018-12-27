@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-use std::fmt;
-use std::fmt::Formatter;
-
 #[derive(Debug, Default)]
 pub struct Node {
     pub label: String,
@@ -104,7 +100,7 @@ pub fn archy(input: &Node, prefix: &str, opts: &ArchyOpts) -> String {
 
             let next_output = next_string_indices
                 .skip(target_num)
-                .map(|(i, char)| char.to_string())
+                .map(|(_i, char)| char.to_string())
                 .collect::<Vec<String>>()
                 .join("");
 

@@ -6,7 +6,6 @@ use crate::task::{RunMode, Task};
 use crate::task_group::task_group;
 use crate::task_item::task_item;
 use crate::task_seq::task_seq;
-use std::collections::HashMap;
 
 pub type FutureSig = Box<Future<Item = Result<Report, Report>, Error = Report> + Send>;
 

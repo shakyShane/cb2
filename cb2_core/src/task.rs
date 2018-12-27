@@ -84,7 +84,7 @@ fn item_display(item: &TaskItem, reports: &HashMap<String, SimpleReport>) -> Str
     let status = item_status(item, reports);
     match item.name.clone() {
         Some(name) => format!("{} {}:\n{}", status, name, item.cmd,),
-        Some(Name::Empty) | None => format!("{} {}", status, item.cmd.to_string()),
+        None => format!("{} {}", status, item.cmd.to_string()),
     }
 }
 
@@ -92,7 +92,7 @@ fn group_name(group: &TaskGroup, reports: &HashMap<String, SimpleReport>) -> Str
     let status = group_status(group, reports);
     match group.name.clone() {
         Some(name) => format!("{} {} {}", status, name, group.run_mode),
-        Some(Name::Empty) | None => format!("{} {}", status, group.run_mode),
+        None => format!("{} {}", status, group.run_mode),
     }
 }
 
