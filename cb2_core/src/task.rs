@@ -61,6 +61,7 @@ pub enum Status {
     Ok,
     Err,
     NotStarted,
+    Started,
 }
 
 impl fmt::Display for Status {
@@ -69,6 +70,7 @@ impl fmt::Display for Status {
             Status::Ok => format!("{}", Green.paint("✓")),
             Status::Err => format!("{}", Red.paint("x")),
             Status::NotStarted => format!("{}", Yellow.paint("-")),
+            Status::Started => format!("{}", Yellow.paint("+")),
         };
         write!(f, "{}", output)
     }

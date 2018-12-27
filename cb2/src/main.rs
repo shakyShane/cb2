@@ -44,6 +44,7 @@ fn run(input: Input, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskE
         let reports = report_stream
             .inspect(|report| {
                 match report {
+                    Report::Begin { id: _ } => println!("[cb2] {} {}", Status::Started, "name"),
                     Report::End { id: _ } => println!("[cb2] {} {}", Status::Ok, "name"),
                     Report::Error { id: _ } => println!("[cb2] {} {}", Status::Err, "name"),
                     _ => { /* noop */ }
