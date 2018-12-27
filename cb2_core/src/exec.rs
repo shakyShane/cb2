@@ -9,10 +9,8 @@ use crate::task_item::task_item;
 use crate::task_seq::task_seq;
 use futures::sync::mpsc;
 use futures::sync::mpsc::{Receiver, Sender};
-use futures::sync::oneshot;
 use futures::Stream;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 pub type FutureSig = Box<Future<Item = Result<Report, Report>, Error = Report> + Send>;
 
@@ -32,8 +30,8 @@ pub fn exec(
                 RunMode::Parallel => task_group(group, report_sender.clone()),
             },
         };
-        let c1 = task_tree.clone();
-        let c2 = task_tree.clone();
+        let _c1 = task_tree.clone();
+        let _c2 = task_tree.clone();
 
         // tokio::spawn/run need Future<Item=(),Error=()> so
         // we extract the values here and send them back out of the channel
@@ -42,9 +40,8 @@ pub fn exec(
                 Ok(report) => Ok(report.simplify()),
                 Err(report) => Ok(report.simplify()),
             })
-            .map_err(move |report| {
+            .map_err(move |_report| {
                 unimplemented!();
-                ()
             })
     });
 

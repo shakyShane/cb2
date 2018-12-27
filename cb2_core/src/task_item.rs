@@ -22,8 +22,8 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
                     .send(Report::Begin {
                         id: id_clone.clone(),
                     })
-                    .map(|val| ())
-                    .map_err(|e| ()),
+                    .map(|_val| ())
+                    .map_err(|_e| ()),
             );
             let mut child = Command::new("sh");
             child.arg("-c").arg(cmd_clone);
@@ -44,8 +44,8 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
                         sender
                             .clone()
                             .send(outgoing.clone())
-                            .map(|val| ())
-                            .map_err(|e| ()),
+                            .map(|_val| ())
+                            .map_err(|_e| ()),
                     );
                     match tx.send(report_wrap(outgoing)) {
                         Ok(_s) => {
