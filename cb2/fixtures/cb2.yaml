@@ -4,7 +4,8 @@ tasks:
   # Example of accepting a sequence of strings
   build:
     - echo 1
-    - echo 2 && sleep 1 && ech 3
+    - run_mode: Parallel
+      tasks: ["@t1", "@t2", "@t3", "@t4", "@t5", "@t6"]
 
   t1: sleep 1 && echo 1
   t2: sleep 1 && echo 2

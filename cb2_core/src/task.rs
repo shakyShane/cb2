@@ -159,7 +159,9 @@ impl Task {
                 TaskDef::TaskSeq(seq) => {
                     Task::from_seq(seq.to_vec(), None, RunMode::Parallel, &input)
                 }
-                _ => unimplemented!(),
+                TaskDef::TaskSeqObj {run_mode, tasks} => {
+                    Task::from_seq(tasks.to_vec(), None, run_mode.unwrap_or(RunMode::Series), &input)
+                }
             })
             .collect::<Vec<Task>>();
         Task::Group(TaskGroup {
