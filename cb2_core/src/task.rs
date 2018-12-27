@@ -135,7 +135,44 @@ fn item_status(task: &TaskItem, reports: &HashMap<String, SimpleReport>) -> Stat
         })
 }
 
+fn flatten(t: &Task, map: &mut HashMap<String, Task>) {
+    match t {
+        Task::Item(task_item) => {
+            map.insert(task_item.id.clone(), t.clone());
+        }
+        Task::Group(group) => {
+            map.insert(
+                group.id.clone(),
+                Task::Group(TaskGroup {
+                    items: vec![],
+                    ..group.clone()
+                }),
+            );
+            group.items.iter().for_each(|item| {
+                flatten(item, map);
+            })
+        }
+    }
+}
+
 impl Task {
+    pub fn name(&self) -> Name {
+        match self {
+            Task::Item(item) => item
+                .name
+                .clone()
+                .unwrap_or(Name::String(item.cmd.to_string())),
+            Task::Group(group) => group
+                .name
+                .clone()
+                .unwrap_or(Name::String("unamed group".into())),
+        }
+    }
+    pub fn flatten(&self) -> HashMap<String, Task> {
+        let mut hm = HashMap::new();
+        flatten(self, &mut hm);
+        hm
+    }
     pub fn get_tree(&self, reports: &HashMap<String, SimpleReport>) -> String {
         match self {
             Task::Item(item) => item_display(item, reports),

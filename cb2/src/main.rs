@@ -36,17 +36,34 @@ fn main() {
 fn run(input: Input, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
     let lookups = select(&input, &names)?;
     let task_tree = Task::generate_series_tree(&input, &names);
+    let flat = task_tree.flatten();
+    //    println!("{:#?}", flat);
     //    let task_tree = Task::generate_par_tree(&input, &names);
 
     let (init, report_stream) = exec::exec(task_tree.clone());
 
     tokio::run(lazy(move || {
         let reports = report_stream
-            .inspect(|report| {
+            .inspect(move |report| {
                 match report {
-                    Report::Begin { id: _ } => println!("[cb2] {} {}", Status::Started, "name"),
-                    Report::End { id: _ } => println!("[cb2] {} {}", Status::Ok, "name"),
-                    Report::Error { id: _ } => println!("[cb2] {} {}", Status::Err, "name"),
+                    Report::Begin { id } => {
+                        flat.get(id).map(|task| {
+                            let name = task.name();
+                            println!("[cb2] {} {} started", Status::Started, name);
+                        });
+                    }
+                    Report::End { id } => {
+                        flat.get(id).map(|task| {
+                            let name = task.name();
+                            println!("[cb2] {} {}", Status::Ok, name);
+                        });
+                    }
+                    Report::Error { id } => {
+                        flat.get(id).map(|task| {
+                            let name = task.name();
+                            println!("[cb2] {} {}", Status::Err, name);
+                        });
+                    }
                     _ => { /* noop */ }
                 }
             })
