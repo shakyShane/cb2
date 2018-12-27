@@ -1,14 +1,18 @@
+extern crate ansi_term;
 extern crate env_logger;
 extern crate futures;
 extern crate tokio;
+use cb2_core::exec;
 use futures::future::lazy;
 
-use cb2_core::exec;
 use cb2_core::input::Input;
+use cb2_core::report::Report;
 use cb2_core::task::Task;
 use cb2_core::task_lookup::{select, TaskError, TaskLookup};
 use futures::future::Future;
 use futures::Stream;
+
+use cb2_core::task::Status;
 
 fn main() {
     env_logger::init();
@@ -31,15 +35,19 @@ fn main() {
 
 fn run(input: Input, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
     let lookups = select(&input, &names)?;
-    let task_tree = Task::generate_series(&input, &names);
-    //    let task_tree = Task::generate_par(&input, &names);
+    let task_tree = Task::generate_series_tree(&input, &names);
+    //    let task_tree = Task::generate_par_tree(&input, &names);
 
     let (init, report_stream) = exec::exec(task_tree.clone());
 
     tokio::run(lazy(move || {
         let reports = report_stream
             .inspect(|report| {
-                println!("Report: {:?}", report);
+                match report {
+                    Report::End { id: _ } => println!("{} {}", Status::Ok, "name"),
+                    Report::Error { id: _ } => println!("{} {}", Status::Err, "name"),
+                    _ => { /* noop */ }
+                }
             })
             .collect();
 

@@ -192,7 +192,7 @@ impl Task {
             name: alias,
         })
     }
-    pub fn generate_series(input: &Input, _names: &Vec<&str>) -> Task {
+    pub fn generate_series_tree(input: &Input, _names: &Vec<&str>) -> Task {
         let parsed = _names
             .iter()
             .map(|name| Task::get_task_item(&input, name))
@@ -213,7 +213,7 @@ impl Task {
             name: Some(Name::String(top_level_msg)),
         })
     }
-    pub fn generate_par(input: &Input, _names: &Vec<&str>) -> Task {
+    pub fn generate_par_tree(input: &Input, _names: &Vec<&str>) -> Task {
         let parsed = _names
             .iter()
             .map(|name| Task::get_task_item(&input, name))
