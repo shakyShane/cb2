@@ -56,6 +56,24 @@ pub enum Name {
     Empty,
 }
 
+#[derive(Debug, Clone)]
+pub enum Status {
+    Ok,
+    Err,
+    NotStarted,
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let output = match self {
+            Status::Ok => format!("{}", Green.paint("✓")),
+            Status::Err => format!("{}", Red.paint("x")),
+            Status::NotStarted => format!("{}", Yellow.paint("-")),
+        };
+        write!(f, "{}", output)
+    }
+}
+
 impl fmt::Display for Name {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let output = match self {
@@ -82,6 +100,7 @@ fn to_archy_nodes(group: &Vec<Task>, reports: &HashMap<String, SimpleReport>) ->
 
 fn item_display(item: &TaskItem, reports: &HashMap<String, SimpleReport>) -> String {
     let status = item_status(item, reports);
+
     match item.name.clone() {
         Some(name) => format!("{} {}\n{}", status, name, item.cmd,),
         None => format!("{} {}", status, item.cmd.to_string()),
@@ -96,24 +115,22 @@ fn group_name(group: &TaskGroup, reports: &HashMap<String, SimpleReport>) -> Str
     }
 }
 
-fn group_status(group: &TaskGroup, reports: &HashMap<String, SimpleReport>) -> String {
-    reports.get(&group.id).map_or_else(
-        || format!("{}", Yellow.paint("-")),
-        |report| match report {
-            SimpleReport::Ok { .. } => format!("{}", Green.paint("✓")),
-            SimpleReport::Err { .. } => format!("{}", Red.paint("x")),
-        },
-    )
+fn group_status(group: &TaskGroup, reports: &HashMap<String, SimpleReport>) -> Status {
+    reports
+        .get(&group.id)
+        .map_or(Status::NotStarted, |report| match report {
+            SimpleReport::Ok { .. } => Status::Ok,
+            SimpleReport::Err { .. } => Status::Err,
+        })
 }
 
-fn item_status(task: &TaskItem, reports: &HashMap<String, SimpleReport>) -> String {
-    reports.get(&task.id).map_or_else(
-        || format!("{}", Yellow.paint("-")),
-        |report| match report {
-            SimpleReport::Ok { .. } => format!("{}", Green.paint("✓")),
-            SimpleReport::Err { .. } => format!("{}", Red.paint("x")),
-        },
-    )
+fn item_status(task: &TaskItem, reports: &HashMap<String, SimpleReport>) -> Status {
+    reports
+        .get(&task.id)
+        .map_or(Status::NotStarted, |report| match report {
+            SimpleReport::Ok { .. } => Status::Ok,
+            SimpleReport::Err { .. } => Status::Err,
+        })
 }
 
 impl Task {
@@ -159,9 +176,12 @@ impl Task {
                 TaskDef::TaskSeq(seq) => {
                     Task::from_seq(seq.to_vec(), None, RunMode::Parallel, &input)
                 }
-                TaskDef::TaskSeqObj {run_mode, tasks} => {
-                    Task::from_seq(tasks.to_vec(), None, run_mode.unwrap_or(RunMode::Series), &input)
-                }
+                TaskDef::TaskSeqObj { run_mode, tasks } => Task::from_seq(
+                    tasks.to_vec(),
+                    None,
+                    run_mode.unwrap_or(RunMode::Series),
+                    &input,
+                ),
             })
             .collect::<Vec<Task>>();
         Task::Group(TaskGroup {

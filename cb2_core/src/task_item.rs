@@ -18,6 +18,7 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
         tokio::spawn(lazy(move || {
             tokio::spawn(
                 sender
+                    .clone()
                     .send(Report::Begin {
                         id: id_clone.clone(),
                     })
@@ -30,35 +31,42 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
             child.stdout(Stdio::inherit());
             match child.status() {
                 Ok(s) => {
-                    if s.success() {
-                        match tx.send(Ok(Report::End {
+                    let outgoing = if s.success() {
+                        Report::End {
                             id: id_clone.clone(),
-                        })) {
-                            Ok(_s) => {
-                                debug!("sent oneshot OK for {}", id_clone);
-                            }
-                            Err(_e) => {
-                                error!("failed to send oneshot OK for {}", id_clone);
-                            }
                         }
-                        Ok(())
                     } else {
-                        match tx.send(Err(Report::Error {
+                        Report::Error {
                             id: id_clone.clone(),
-                        })) {
-                            Ok(_s) => {
-                                debug!("sent oneshot Err for {}", id_clone);
-                            }
-                            Err(_e) => {
-                                error!("failed to send oneshot Err for {}", id_clone);
-                            }
                         }
-                        Err(())
+                    };
+                    tokio::spawn(
+                        sender
+                            .clone()
+                            .send(outgoing.clone())
+                            .map(|val| ())
+                            .map_err(|e| ()),
+                    );
+                    match tx.send(report_wrap(outgoing)) {
+                        Ok(_s) => {
+                            debug!("sent oneshot for {}", id_clone);
+                        }
+                        Err(_e) => {
+                            error!("failed to send oneshot for {}", id_clone);
+                        }
                     }
+                    Ok(())
                 }
                 Err(_e) => Err(()),
             }
         }));
         rx.map_err(move |_e| Report::Error { id: id_clone2 })
     }))
+}
+
+fn report_wrap(report: Report) -> Result<Report, Report> {
+    match report {
+        Report::Error { .. } | Report::ErrorGroup { .. } => Err(report),
+        _ => Ok(report),
+    }
 }
