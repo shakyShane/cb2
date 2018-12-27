@@ -9,6 +9,9 @@ pub enum SimpleReport {
 #[derive(Debug, Clone)]
 pub enum Report {
     Unknown,
+    Begin {
+        id: String,
+    },
     End {
         id: String,
     },
@@ -53,6 +56,7 @@ fn collect(report: &Report, target: &mut HashMap<String, SimpleReport>) {
             target.insert(id.clone(), SimpleReport::Err { id: id.to_string() });
         }
         Report::Unknown => unimplemented!(),
+        Report::Begin { .. } => { /* noop */ }
     };
 }
 

@@ -7,20 +7,29 @@ use crate::task::{RunMode, Task};
 use crate::task_group::task_group;
 use crate::task_item::task_item;
 use crate::task_seq::task_seq;
+use futures::sync::mpsc;
+use futures::sync::mpsc::{Receiver, Sender};
 use futures::sync::oneshot;
+use futures::Stream;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 pub type FutureSig = Box<Future<Item = Result<Report, Report>, Error = Report> + Send>;
 
-pub fn exec(task_tree: Task) -> impl Future<Item = HashMap<String, SimpleReport>, Error = ()> {
-    let (tx, rx) = oneshot::channel();
-    tokio::run(lazy(move || {
+pub fn exec(
+    task_tree: Task,
+) -> (
+    impl Future<Item = HashMap<String, SimpleReport>, Error = ()>,
+    impl Stream<Item = Report, Error = ()>,
+) {
+    let (report_sender, report_receiver): (Sender<Report>, Receiver<Report>) = mpsc::channel(1_024);
+
+    let executor = lazy(move || {
         let as_future = match task_tree.clone() {
-            Task::Item(item) => task_item(item),
+            Task::Item(item) => task_item(item, report_sender.clone()),
             Task::Group(group) => match group.run_mode {
-                RunMode::Series => task_seq(group),
-                RunMode::Parallel => task_group(group),
+                RunMode::Series => task_seq(group, report_sender.clone()),
+                RunMode::Parallel => task_group(group, report_sender.clone()),
             },
         };
         let c1 = task_tree.clone();
@@ -28,32 +37,16 @@ pub fn exec(task_tree: Task) -> impl Future<Item = HashMap<String, SimpleReport>
 
         // tokio::spawn/run need Future<Item=(),Error=()> so
         // we extract the values here and send them back out of the channel
-        let chain = as_future
-            .map(move |reports| {
-                match reports {
-                    Ok(report) => {
-                        println!("{:?}", report);
-                        let as_hashmap = report.simplify();
-                        tx.send(as_hashmap).expect("send OK reports out");
-                    }
-                    Err(report) => {
-                        let as_hashmap = report.simplify();
-                        tx.send(as_hashmap).expect("send ERR reports out");
-                    }
-                };
-                ()
+        as_future
+            .and_then(move |reports| match reports {
+                Ok(report) => Ok(report.simplify()),
+                Err(report) => Ok(report.simplify()),
             })
             .map_err(move |report| {
                 unimplemented!();
                 ()
-            });
+            })
+    });
 
-        tokio::spawn(chain);
-
-        Ok(())
-    }));
-    rx.map_err(|e| {
-        unimplemented!();
-        ()
-    })
+    (executor, report_receiver)
 }

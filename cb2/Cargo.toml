@@ -9,3 +9,4 @@ cb2_core = { path = "../cb2_core" }
 env_logger = "0.6.0"
 log = "0.4.6"
 futures = "0.1.25"
+tokio = "0.1.13"
