@@ -32,10 +32,10 @@ pub fn task_group(group: TaskGroup) -> FutureSig {
                     reports: items.clone(),
                 }))
             } else {
-                Err(Report::ErrorGroup {
+                Ok(Err(Report::ErrorGroup {
                     id: id_clone,
                     reports: items.clone(),
-                })
+                }))
             }
         })
     }))

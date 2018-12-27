@@ -83,7 +83,7 @@ fn to_archy_nodes(group: &Vec<Task>, reports: &HashMap<String, SimpleReport>) ->
 fn item_display(item: &TaskItem, reports: &HashMap<String, SimpleReport>) -> String {
     let status = item_status(item, reports);
     match item.name.clone() {
-        Some(name) => format!("{} {}:\n{}", status, name, item.cmd,),
+        Some(name) => format!("{} {}\n{}", status, name, item.cmd,),
         None => format!("{} {}", status, item.cmd.to_string()),
     }
 }

@@ -59,10 +59,10 @@ pub fn task_seq(group: TaskGroup) -> FutureSig {
                         reports: reports.clone(),
                     }))
                 } else {
-                    Err(Report::ErrorGroup {
+                    Ok(Err(Report::ErrorGroup {
                         id: id_clone,
                         reports: reports.clone(),
-                    })
+                    }))
                 }
             })
     }))

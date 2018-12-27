@@ -18,15 +18,25 @@ pub fn exec(task_tree: Task) {
                 RunMode::Parallel => task_group(group),
             },
         };
-
+        let c1 = task_tree.clone();
+        let c2 = task_tree.clone();
         let chain = as_future
-            .map(|val| {
-                println!("outgoing = {:#?}", val);
+            .map(move |reports| {
+                match reports {
+                    Ok(report) => {
+                        let as_hashmap = report.simplify();
+                        println!("{}", c1.get_tree(&as_hashmap));
+                    }
+                    Err(report) => {
+                        let as_hashmap = report.simplify();
+                        println!("{}", c1.get_tree(&as_hashmap));
+                    }
+                };
                 ()
             })
             .map_err(move |report| {
                 let as_hashmap = report.simplify();
-                println!("{}", task_tree.clone().get_tree(&as_hashmap));
+                println!("{}", c2.get_tree(&as_hashmap));
                 ()
             });
 
