@@ -1,10 +1,13 @@
+extern crate env_logger;
+
 use cb2_core::exec;
 use cb2_core::input::Input;
 use cb2_core::task::Task;
 use cb2_core::task_lookup::{select, TaskError, TaskLookup};
 
 fn main() {
-    let args = vec!["docker"];
+    env_logger::init();
+    let args = vec!["build"];
 
     match Input::read_from_file("cb2/fixtures/cb2.yaml") {
         Ok(input) => match run(input, args) {

@@ -3,9 +3,14 @@ extern crate tokio;
 
 #[macro_use]
 extern crate serde_derive;
+
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
+
+#[macro_use]
+extern crate log;
+extern crate env_logger;
 
 #[macro_use]
 extern crate from_file_derive;

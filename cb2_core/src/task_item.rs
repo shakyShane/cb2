@@ -21,15 +21,27 @@ pub fn task_item(task_item: TaskItem) -> FutureSig {
             match child.status() {
                 Ok(s) => {
                     if s.success() {
-                        match tx.send(Ok(Report::End { id: id_clone })) {
-                            Ok(s) => println!("sent oneshot OK"),
-                            Err(e) => println!("failed to send sent oneshot OK={:?}", e),
+                        match tx.send(Ok(Report::End {
+                            id: id_clone.clone(),
+                        })) {
+                            Ok(s) => {
+                                debug!("sent oneshot OK for {}", id_clone);
+                            }
+                            Err(e) => {
+                                error!("failed to send oneshot OK for {}", id_clone);
+                            }
                         }
                         Ok(())
                     } else {
-                        match tx.send(Err(Report::Error { id: id_clone })) {
-                            Ok(s) => println!("sent oneshot ERR"),
-                            Err(e) => println!("failed to send sent oneshot ERR={:?}", e),
+                        match tx.send(Err(Report::Error {
+                            id: id_clone.clone(),
+                        })) {
+                            Ok(s) => {
+                                debug!("sent oneshot Err for {}", id_clone);
+                            }
+                            Err(e) => {
+                                error!("failed to send oneshot Err for {}", id_clone);
+                            }
                         }
                         Err(())
                     }
