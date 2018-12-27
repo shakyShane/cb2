@@ -34,7 +34,13 @@ impl Report {
 
 fn collect(report: &Report, target: &mut HashMap<String, SimpleReport>) {
     match report {
-        Report::ErrorGroup { id, reports, .. } | Report::EndGroup { id, reports } => {
+        Report::EndGroup { id, reports } => {
+            target.insert(id.clone(), SimpleReport::Ok { id: id.to_string() });
+            reports.iter().for_each(|result| match result {
+                Ok(report) | Err(report) => collect(&report.clone(), target),
+            })
+        }
+        Report::ErrorGroup { id, reports, .. } => {
             target.insert(id.clone(), SimpleReport::Err { id: id.to_string() });
             reports.iter().for_each(|result| match result {
                 Ok(report) | Err(report) => collect(&report.clone(), target),

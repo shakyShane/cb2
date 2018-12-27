@@ -9,7 +9,7 @@ use futures::future::Future;
 
 fn main() {
     env_logger::init();
-    let args = vec!["build2"];
+    let args = vec!["build"];
 
     ::std::process::exit(match Input::read_from_file("cb2/fixtures/cb2.yaml") {
         Ok(input) => match run(input, args) {

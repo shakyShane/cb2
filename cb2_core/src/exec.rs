@@ -32,6 +32,7 @@ pub fn exec(task_tree: Task) -> impl Future<Item = HashMap<String, SimpleReport>
             .map(move |reports| {
                 match reports {
                     Ok(report) => {
+                        println!("{:?}", report);
                         let as_hashmap = report.simplify();
                         tx.send(as_hashmap).expect("send OK reports out");
                     }

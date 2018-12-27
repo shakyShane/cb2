@@ -2,7 +2,9 @@ tasks:
 
   build2: ["@docker", "@client", "@server", "@build", "@p"]
   # Example of accepting a sequence of strings
-  build: ech
+  build:
+    - echo 1
+    - echo 2
 
   t1: sleep 1 && echo 1
   t2: sleep 1 && echo 2
