@@ -24,10 +24,10 @@ pub fn task_item(task_item: TaskItem) -> FutureSig {
                         match tx.send(Ok(Report::End {
                             id: id_clone.clone(),
                         })) {
-                            Ok(s) => {
+                            Ok(_s) => {
                                 debug!("sent oneshot OK for {}", id_clone);
                             }
-                            Err(e) => {
+                            Err(_e) => {
                                 error!("failed to send oneshot OK for {}", id_clone);
                             }
                         }
@@ -36,10 +36,10 @@ pub fn task_item(task_item: TaskItem) -> FutureSig {
                         match tx.send(Err(Report::Error {
                             id: id_clone.clone(),
                         })) {
-                            Ok(s) => {
+                            Ok(_s) => {
                                 debug!("sent oneshot Err for {}", id_clone);
                             }
-                            Err(e) => {
+                            Err(_e) => {
                                 error!("failed to send oneshot Err for {}", id_clone);
                             }
                         }
