@@ -16,6 +16,7 @@ extern crate env_logger;
 extern crate from_file_derive;
 extern crate from_file;
 
+extern crate chrono;
 extern crate uuid;
 
 pub mod input;

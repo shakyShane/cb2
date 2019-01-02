@@ -4,6 +4,7 @@ use crate::task::RunMode;
 use crate::task::{Task, TaskGroup};
 use crate::task_group::task_group;
 use crate::task_item::task_item;
+use chrono::Utc;
 use futures::future::lazy;
 use futures::stream::iter_ok;
 use futures::sync::mpsc::Sender;
@@ -56,11 +57,13 @@ pub fn task_seq(group: TaskGroup, sender: Sender<Report>) -> FutureSig {
 
                 if all_valid {
                     Ok(Ok(Report::EndGroup {
+                        time: Utc::now(),
                         id: id_clone,
                         reports: reports.clone(),
                     }))
                 } else {
                     Ok(Err(Report::ErrorGroup {
+                        time: Utc::now(),
                         id: id_clone,
                         reports: reports.clone(),
                     }))

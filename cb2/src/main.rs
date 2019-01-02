@@ -55,19 +55,19 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
         let reports = report_stream
             .inspect(move |report| {
                 match report {
-                    Report::Begin { id } => {
+                    Report::Begin { id, .. } => {
                         flat.get(id).map(|task| {
                             let name = task.name();
                             println!("[cb2] {} {} started", Status::Started, name);
                         });
                     }
-                    Report::End { id } => {
+                    Report::End { id, .. } => {
                         flat.get(id).map(|task| {
                             let name = task.name();
                             println!("[cb2] {} {}", Status::Ok, name);
                         });
                     }
-                    Report::Error { id } => {
+                    Report::Error { id, .. } => {
                         flat.get(id).map(|task| {
                             let name = task.name();
                             println!("[cb2] {} {}", Status::Err, name);

@@ -1,6 +1,7 @@
 use crate::exec::FutureSig;
 use crate::report::Report;
 use crate::task::TaskItem;
+use chrono::Utc;
 use futures::future::lazy;
 use futures::sync::mpsc::Sender;
 use futures::sync::oneshot;
@@ -22,6 +23,7 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
                     .clone()
                     .send(Report::Begin {
                         id: id_clone.clone(),
+                        time: Utc::now(),
                     })
                     .then(|_v| tx1.send(()))
                     .map(|_val| ())
@@ -37,10 +39,12 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
                         let outgoing = if s.success() {
                             Report::End {
                                 id: id_clone.clone(),
+                                time: Utc::now(),
                             }
                         } else {
                             Report::Error {
                                 id: id_clone.clone(),
+                                time: Utc::now(),
                             }
                         };
                         tokio::spawn(
@@ -64,7 +68,10 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
                 }
             })
         }));
-        rx.map_err(move |_e| Report::Error { id: id_clone2 })
+        rx.map_err(move |_e| Report::Error {
+            id: id_clone2,
+            time: Utc::now(),
+        })
     }))
 }
 
