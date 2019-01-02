@@ -12,28 +12,37 @@ use cb2_core::task_lookup::{select, TaskError, TaskLookup};
 use futures::future::Future;
 use futures::Stream;
 
+use cb2_core::options::Options;
 use cb2_core::task::Status;
+use std::env;
+use std::process;
 
 fn main() {
     env_logger::init();
-    let args = vec!["build"];
-
-    ::std::process::exit(match Input::read_from_file("cb2/fixtures/cb2.yaml") {
-        Ok(input) => match run(input, args) {
-            Ok((_input, _lookups)) => 0,
-            Err(_e) => {
-                eprintln!("{}", _e);
-                1
-            }
-        },
-        Err(e) => {
-            eprintln!("{}", e.to_string());
-            1
+    match Options::from_args(&mut env::args_os()) {
+        Ok(options) => {
+            process::exit(match Input::read_from_file("cb2.yaml") {
+                Ok(input) => match run(input, options.tasks) {
+                    Ok((_input, _lookups)) => 0,
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        1
+                    }
+                },
+                Err(e) => {
+                    eprintln!("{}", e);
+                    1
+                }
+            });
         }
-    });
+        Err(e) => {
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    }
 }
 
-fn run(input: Input, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
+fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
     let lookups = select(&input, &names)?;
     let task_tree = Task::generate_series_tree(&input, &names);
     let flat = task_tree.flatten();
@@ -70,7 +79,6 @@ fn run(input: Input, names: Vec<&str>) -> Result<(Input, Vec<TaskLookup>), TaskE
             .collect();
 
         let main = init.map(move |simple_reports| {
-            println!("simple_reports={:?}", simple_reports);
             println!("{}", task_tree.clone().get_tree(&simple_reports));
         });
 

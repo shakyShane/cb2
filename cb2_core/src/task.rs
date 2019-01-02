@@ -231,10 +231,10 @@ impl Task {
             name: alias,
         })
     }
-    pub fn generate_series_tree(input: &Input, _names: &Vec<&str>) -> Task {
+    pub fn generate_series_tree(input: &Input, _names: &Vec<String>) -> Task {
         let parsed = _names
             .iter()
-            .map(|name| Task::get_task_item(&input, name))
+            .map(|name| Task::get_task_item(&input, &name))
             .collect::<Vec<Task>>();
 
         let top_level_names = _names
