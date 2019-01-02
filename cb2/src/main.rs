@@ -5,6 +5,7 @@ extern crate tokio;
 use cb2_core::exec;
 use futures::future::lazy;
 
+use ansi_term::Colour::{Blue, Green, Red, Yellow};
 use cb2_core::input::Input;
 use cb2_core::report::Report;
 use cb2_core::task::Task;
@@ -14,7 +15,12 @@ use futures::Stream;
 
 use cb2_core::options::Options;
 use cb2_core::task::Status;
+use chrono::format::DelayedFormat;
+use chrono::format::StrftimeItems;
+use chrono::DateTime;
+use chrono::Utc;
 use std::env;
+use std::fmt;
 use std::process;
 
 fn main() {
@@ -42,6 +48,23 @@ fn main() {
     }
 }
 
+enum Prefix {
+    Started(String),
+    Ok(String),
+    Err(String),
+}
+
+impl fmt::Display for Prefix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let output = match self {
+            Prefix::Started(t) => format!("{}", Yellow.paint(format!("[cb2-{}]", t))),
+            Prefix::Ok(t) => format!("{}", Green.paint(format!("[cb2-{}]", t))),
+            Prefix::Err(t) => format!("{}", Red.paint(format!("[cb2-{}]", t))),
+        };
+        write!(f, "{}", output)
+    }
+}
+
 fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
     let lookups = select(&input, &names)?;
     let task_tree = Task::generate_series_tree(&input, &names);
@@ -55,22 +78,37 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
         let reports = report_stream
             .inspect(move |report| {
                 match report {
-                    Report::Begin { id, .. } => {
+                    Report::Begin { id, time, .. } => {
                         flat.get(id).map(|task| {
                             let name = task.name();
-                            println!("[cb2] {} {} started", Status::Started, name);
+                            println!(
+                                "{} {} {} started",
+                                Prefix::Started(time.format("%T").to_string()),
+                                Status::Started,
+                                name
+                            );
                         });
                     }
-                    Report::End { id, .. } => {
+                    Report::End { id, time, .. } => {
                         flat.get(id).map(|task| {
                             let name = task.name();
-                            println!("[cb2] {} {}", Status::Ok, name);
+                            println!(
+                                "{} {} {}",
+                                Prefix::Ok(time.format("%T").to_string()),
+                                Status::Ok,
+                                name
+                            );
                         });
                     }
-                    Report::Error { id, .. } => {
+                    Report::Error { id, time, .. } => {
                         flat.get(id).map(|task| {
                             let name = task.name();
-                            println!("[cb2] {} {}", Status::Err, name);
+                            println!(
+                                "{} {} {}",
+                                Prefix::Err(time.format("%T").to_string()),
+                                Status::Err,
+                                name
+                            );
                         });
                     }
                     _ => { /* noop */ }

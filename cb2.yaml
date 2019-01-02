@@ -1,2 +1,7 @@
 tasks:
-  build: "echo 1"
+  build:
+  - "echo 1 && sleep 1 && echo 2"
+  - "@ech"
+
+
+  ech: "echo here"
