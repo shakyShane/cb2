@@ -5,7 +5,7 @@ authors = ["Shane Osbourne <shane.osbourne8@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-cb2_core = { path = "../cb2_core" }
+cb2_core = { path = "../cb2_core", version = "0.1.0" }
 env_logger = "0.6.0"
 log = "0.4.6"
 futures = "0.1.25"
