@@ -1,6 +1,5 @@
 use chrono::DateTime;
 use chrono::Utc;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SimpleReport {
@@ -14,67 +13,79 @@ pub enum Report {
         id: String,
         time: DateTime<Utc>,
     },
+    GroupStarted {
+        id: String,
+        time: DateTime<Utc>,
+    },
     End {
         id: String,
         time: DateTime<Utc>,
+        dur: chrono::Duration,
     },
     EndGroup {
         id: String,
         reports: Vec<Result<Report, Report>>,
         time: DateTime<Utc>,
+        dur: chrono::Duration,
     },
     Error {
         id: String,
         time: DateTime<Utc>,
+        dur: chrono::Duration,
     },
     ErrorGroup {
         id: String,
         reports: Vec<Result<Report, Report>>,
         time: DateTime<Utc>,
+        dur: chrono::Duration,
     },
 }
 impl Report {
-    pub fn simplify(self) -> HashMap<String, SimpleReport> {
-        let mut output = HashMap::new();
-        collect(&self, &mut output);
+    pub fn flatten(&self) -> Vec<Report> {
+        let mut output = Vec::new();
+        collect_vec(&self, &mut output);
         output
     }
     pub fn id(&self) -> String {
         match self {
-            Report::Started {id, ..}|
-            Report::EndGroup {id, ..}|
-            Report::End {id, ..}|
-            Report::Error {id, ..}|
-            Report::ErrorGroup {id, ..} => id.to_string()
+            Report::Started { id, .. }
+            | Report::EndGroup { id, .. }
+            | Report::GroupStarted { id, .. }
+            | Report::End { id, .. }
+            | Report::Error { id, .. }
+            | Report::ErrorGroup { id, .. } => id.to_string(),
         }
     }
     pub fn duration_by_id(match_id: String, reports: &Vec<Report>) -> Option<f32> {
-        let start = reports.iter().find_map(|report| {
-            match report {
-                Report::Started { id, time, .. } => {
-                    if id.to_string() == match_id {
-                        Some(time)
-                    } else {
-                        None
-                    }
-                },
-                _ => None
+        let start = reports.iter().find_map(|report| match report {
+            Report::Started { id, time, .. } => {
+                if id.to_string() == match_id {
+                    Some(time)
+                } else {
+                    None
+                }
             }
+            Report::GroupStarted { id, time, .. } => {
+                if id.to_string() == match_id {
+                    Some(time)
+                } else {
+                    None
+                }
+            }
+            _ => None,
         });
-        let end = reports.iter().find_map(|report| {
-            match report {
-                Report::End { id, time, .. }|
-                Report::EndGroup { id, time, .. }|
-                Report::Error { id, time, .. }|
-                Report::ErrorGroup { id, time, .. } => {
-                    if id.to_string() == match_id {
-                        Some(time)
-                    } else {
-                        None
-                    }
-                },
-                _ => None
+        let end = reports.iter().find_map(|report| match report {
+            Report::End { id, time, .. }
+            | Report::EndGroup { id, time, .. }
+            | Report::Error { id, time, .. }
+            | Report::ErrorGroup { id, time, .. } => {
+                if id.to_string() == match_id {
+                    Some(time)
+                } else {
+                    None
+                }
             }
+            _ => None,
         });
         match (start, end) {
             (Some(time), Some(time_end)) => {
@@ -82,120 +93,55 @@ impl Report {
                 let dur = time_end.signed_duration_since(*time);
                 Some((dur.num_milliseconds() as f32) / 1000 as f32)
             }
-            _ => None
+            (Some(_time), None) => {
+                println!("start found, no end");
+                None
+            }
+            (None, Some(_time)) => {
+                println!("end found, no start");
+                None
+            }
+            _ => None,
         }
     }
 }
 
-fn collect(report: &Report, target: &mut HashMap<String, SimpleReport>) {
+fn collect_vec(report: &Report, target: &mut Vec<Report>) {
     match report {
-        Report::EndGroup { id, reports, time } => {
-            target.insert(
-                id.clone(),
-                SimpleReport::Ok {
-                    id: id.to_string(),
-                    time: time.clone(),
-                },
-            );
+        Report::EndGroup {
+            id: _,
+            reports,
+            time: _,
+            dur: _,
+        } => {
+            target.push(report.clone());
             reports.iter().for_each(|result| match result {
-                Ok(report) | Err(report) => collect(&report.clone(), target),
+                Ok(report) | Err(report) => collect_vec(&report.clone(), target),
             })
         }
         Report::ErrorGroup {
-            id, reports, time, ..
+            id: _,
+            reports,
+            time: _,
+            dur: _,
+            ..
         } => {
-            target.insert(
-                id.clone(),
-                SimpleReport::Err {
-                    id: id.to_string(),
-                    time: time.clone(),
-                },
-            );
+            target.push(report.clone());
             reports.iter().for_each(|result| match result {
-                Ok(report) | Err(report) => collect(&report.clone(), target),
+                Ok(report) | Err(report) => collect_vec(&report.clone(), target),
             })
         }
-        Report::End { id, time } => {
-            target.insert(
-                id.clone(),
-                SimpleReport::Ok {
-                    id: id.to_string(),
-                    time: time.clone(),
-                },
-            );
+        Report::End { id: _, time: _, .. } => {
+            target.push(report.clone());
         }
-        Report::Error { id, time } => {
-            target.insert(
-                id.clone(),
-                SimpleReport::Err {
-                    id: id.to_string(),
-                    time: time.clone(),
-                },
-            );
+        Report::Error { id: _, time: _, .. } => {
+            target.push(report.clone());
         }
-        Report::Started { .. } => { /* noop */ }
+        Report::Started { .. } => {
+            target.push(report.clone());
+        }
+        Report::GroupStarted { .. } => {
+            target.push(report.clone());
+        }
     };
-}
-
-#[test]
-fn test_duration_by_id() {
-//    let d =
-}
-
-#[test]
-fn test_convert_to_hm_errors() {
-    let report_tree = Report::ErrorGroup {
-        time: Utc::now(),
-        id: "cc1aa056".into(),
-        reports: vec![Err(Report::ErrorGroup {
-            time: Utc::now(),
-            id: "d0a35bf6".into(),
-            reports: vec![Err(Report::Error {
-                id: "0e5bd650".into(),
-            })],
-        })],
-    };
-    let as_hm = report_tree.simplify();
-    println!("{:?}", as_hm);
-}
-
-#[test]
-fn test_convert_to_hm_ok() {
-    let report_tree = Report::EndGroup {
-        time: Utc::now(),
-        id: "cc1aa056".into(),
-        reports: vec![Ok(Report::EndGroup {
-            time: Utc::now(),
-            id: "d0a35bf6".into(),
-            reports: vec![Ok(Report::End {
-                time: Utc::now(),
-                id: "0e5bd650".into(),
-            })],
-        })],
-    };
-    let as_hm = report_tree.simplify();
-    let expected = [
-        (
-            "cc1aa056".to_string(),
-            SimpleReport::Ok {
-                id: "cc1aa056".to_string(),
-            },
-        ),
-        (
-            "d0a35bf6".to_string(),
-            SimpleReport::Ok {
-                id: "d0a35bf6".to_string(),
-            },
-        ),
-        (
-            "0e5bd650".to_string(),
-            SimpleReport::Ok {
-                id: "0e5bd650".to_string(),
-            },
-        ),
-    ]
-    .iter()
-    .cloned()
-    .collect::<HashMap<String, SimpleReport>>();
-    assert_eq!(as_hm, expected);
 }

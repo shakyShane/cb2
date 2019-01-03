@@ -3,14 +3,13 @@ use crate::archy::ArchyOpts;
 use crate::archy::Node;
 use crate::input::Input;
 use crate::input::TaskDef;
-use crate::report::SimpleReport;
+use crate::report::Report;
 use ansi_term::Colour::{Blue, Green, Red, Yellow};
 use ansi_term::Style;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Formatter;
 use uuid::Uuid;
-use crate::report::Report;
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum RunMode {
@@ -59,19 +58,35 @@ pub enum Name {
 
 #[derive(Debug, Clone)]
 pub enum Status {
-    Ok,
-    Err,
+    Ok(Dur),
+    Err(Dur),
     NotStarted,
     Started,
+    Unknown,
+}
+
+#[derive(Debug, Clone)]
+pub struct Dur(pub chrono::Duration);
+impl fmt::Display for Dur {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}s", (self.0.num_milliseconds() as f32) / 1000 as f32)
+    }
 }
 
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let output = match self {
-            Status::Ok => format!("{}", Green.paint("✓")),
-            Status::Err => format!("{}", Red.paint("x")),
+            Status::Ok(dur) => {
+                let s = format!("✓ ({})", dur);
+                format!("{}", Green.paint(s))
+            }
+            Status::Err(dur) => {
+                let s = format!("x ({})", dur);
+                format!("{}", Red.paint(s))
+            }
             Status::NotStarted => format!("{}", Yellow.paint("-")),
             Status::Started => format!("{}", Yellow.paint("+")),
+            Status::Unknown => format!("{}", Yellow.paint("?")),
         };
         write!(f, "{}", output)
     }
@@ -88,53 +103,58 @@ impl fmt::Display for Name {
     }
 }
 
-fn to_archy_nodes(group: &Vec<Task>, simple_reports: &HashMap<String, SimpleReport>, reports: &Vec<Report>) -> Vec<Node> {
+fn to_archy_nodes(group: &Vec<Task>, simple_reports: &Vec<Report>) -> Vec<Node> {
     group
         .into_iter()
         .map(|task| match task {
-            Task::Item(item) => Node::new(item_display(item, simple_reports, reports), vec![]),
+            Task::Item(item) => Node::new(item_display(item, simple_reports), vec![]),
             Task::Group(group) => Node::new(
-                group_name(group, simple_reports, reports),
-                to_archy_nodes(&group.items, simple_reports, reports),
+                group_name(group, simple_reports),
+                to_archy_nodes(&group.items, simple_reports),
             ),
         })
         .collect()
 }
 
-fn item_display(item: &TaskItem, simple_reports: &HashMap<String, SimpleReport>, reports: &Vec<Report>) -> String {
+fn item_display(item: &TaskItem, simple_reports: &Vec<Report>) -> String {
     let status = item_status(item, simple_reports);
-    let dur = Report::duration_by_id(item.id.clone(), reports).unwrap_or(0 as f32);
+    //    println!("{:#?}", simple_reports);
+    //    let dur = Report::duration_by_id(item.id.clone()).unwrap_or(0 as f32);
 
     match item.name.clone() {
-        Some(name) => format!("{} ({}s) {}\n{}", status, dur, name, item.cmd,),
-        None => format!("{} ({}s) {}", status, dur, item.cmd.to_string()),
+        Some(name) => format!("{} {}\n{}", status, name, item.cmd,),
+        None => format!("{} {}", status, item.cmd.to_string()),
     }
 }
 
-fn group_name(group: &TaskGroup, simple_reports: &HashMap<String, SimpleReport>, reports: &Vec<Report>) -> String {
+fn group_name(group: &TaskGroup, simple_reports: &Vec<Report>) -> String {
     let status = group_status(group, simple_reports);
-    let dur = Report::duration_by_id(group.id.clone(), reports).unwrap_or(0 as f32);
+    //    let dur = Report::duration_by_id(group.id.clone(), reports).unwrap_or(0 as f32);
     match group.name.clone() {
-        Some(name) => format!("{} ({}s) {} {}", status, dur, name, group.run_mode),
-        None => format!("{} ({}s) {}", status, dur, group.run_mode),
+        Some(name) => format!("{} {} {}", status, name, group.run_mode),
+        None => format!("{} {}", status, group.run_mode),
     }
 }
 
-fn group_status(group: &TaskGroup, reports: &HashMap<String, SimpleReport>) -> Status {
+fn group_status(group: &TaskGroup, reports: &Vec<Report>) -> Status {
     reports
-        .get(&group.id)
+        .iter()
+        .find(|ref report| report.id() == group.id)
         .map_or(Status::NotStarted, |report| match report {
-            SimpleReport::Ok { .. } => Status::Ok,
-            SimpleReport::Err { .. } => Status::Err,
+            Report::EndGroup { dur, .. } => Status::Ok(Dur(dur.clone())),
+            Report::ErrorGroup { dur, .. } => Status::Err(Dur(dur.clone())),
+            _ => Status::Unknown,
         })
 }
 
-fn item_status(task: &TaskItem, reports: &HashMap<String, SimpleReport>) -> Status {
+fn item_status(task: &TaskItem, reports: &Vec<Report>) -> Status {
     reports
-        .get(&task.id)
+        .iter()
+        .find(|report| report.id() == task.id)
         .map_or(Status::NotStarted, |report| match report {
-            SimpleReport::Ok { .. } => Status::Ok,
-            SimpleReport::Err { .. } => Status::Err,
+            Report::End { dur, .. } => Status::Ok(Dur(dur.clone())),
+            Report::Error { dur, .. } => Status::Err(Dur(dur.clone())),
+            _ => Status::Unknown,
         })
 }
 
@@ -176,15 +196,15 @@ impl Task {
         flatten(self, &mut hm);
         hm
     }
-    pub fn get_tree(&self, simple_reports: &HashMap<String, SimpleReport>, reports: &Vec<Report>) -> String {
+    pub fn get_tree(&self, simple_reports: &Vec<Report>) -> String {
         match self {
-            Task::Item(item) => item_display(item, simple_reports, reports),
+            Task::Item(item) => item_display(item, simple_reports),
             Task::Group(group) => format!(
                 "{}",
                 archy(
                     &Node::new(
-                        group_name(&group, simple_reports, reports),
-                        to_archy_nodes(&group.items, simple_reports, reports)
+                        group_name(&group, simple_reports),
+                        to_archy_nodes(&group.items, simple_reports)
                     ),
                     "",
                     &ArchyOpts::new()

@@ -1,6 +1,7 @@
 use crate::exec::FutureSig;
 use crate::report::Report;
 use crate::task::TaskItem;
+use chrono::Duration;
 use chrono::Utc;
 use futures::future::lazy;
 use futures::sync::mpsc::Sender;
@@ -25,11 +26,20 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
                         id: id_clone.clone(),
                         time: Utc::now(),
                     })
-                    .then(|_v| tx1.send(()))
+                    .then(|v| {
+                        match v {
+                            Ok(_x) => {}
+                            Err(e) => {
+                                eprintln!("{}", e);
+                            }
+                        }
+                        tx1.send(())
+                    })
                     .map(|_val| ())
                     .map_err(|_e: ()| ()),
             );
-            rx1.then(move |_| {
+            rx1.then(move |_report| {
+                let begin_time = Utc::now();
                 let mut child = Command::new("sh");
                 child.arg("-c").arg(cmd_clone);
                 child.stdin(Stdio::inherit());
@@ -40,11 +50,13 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
                             Report::End {
                                 id: id_clone.clone(),
                                 time: Utc::now(),
+                                dur: Utc::now().signed_duration_since(begin_time),
                             }
                         } else {
                             Report::Error {
                                 id: id_clone.clone(),
                                 time: Utc::now(),
+                                dur: Utc::now().signed_duration_since(begin_time),
                             }
                         };
                         tokio::spawn(
@@ -71,6 +83,7 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
         rx.map_err(move |_e| Report::Error {
             id: id_clone2,
             time: Utc::now(),
+            dur: Duration::seconds(0),
         })
     }))
 }

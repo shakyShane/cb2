@@ -1,7 +1,5 @@
 use clap::App as ClapApp;
 use clap::Arg;
-use clap::ArgMatches;
-use clap::Error;
 use std::ffi::OsString;
 use std::fmt;
 

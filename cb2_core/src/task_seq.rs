@@ -9,11 +9,14 @@ use futures::future::lazy;
 use futures::stream::iter_ok;
 use futures::sync::mpsc::Sender;
 use futures::Future;
+use futures::Sink;
 use futures::Stream;
 use std::sync::{Arc, Mutex};
 
 pub fn task_seq(group: TaskGroup, sender: Sender<Report>) -> FutureSig {
     let id_clone = group.id.clone();
+    let begin_clone = sender.clone();
+
     Box::new(lazy(move || {
         let track: Arc<Mutex<Vec<Result<Report, Report>>>> = Arc::new(Mutex::new(vec![]));
         let c1 = track.clone();
@@ -27,47 +30,59 @@ pub fn task_seq(group: TaskGroup, sender: Sender<Report>) -> FutureSig {
             },
         });
 
-        iter_ok(items)
-            .for_each(move |this_future| {
-                let results = c1.clone();
-                this_future
-                    .then(move |x| {
-                        let mut next = results.lock().unwrap();
-                        match x {
-                            Ok(Ok(s)) => {
-                                next.push(Ok(s));
-                                Ok(())
-                            }
-                            Ok(Err(s)) => {
-                                next.push(Err(s));
-                                Err(())
-                            }
-                            Err(e) => {
-                                next.push(Err(e));
-                                Err(())
-                            }
+        let begin_time = Utc::now();
+
+        begin_clone
+            .clone()
+            .send(Report::GroupStarted {
+                id: id_clone.clone(),
+                time: begin_time.clone(),
+            })
+            .then(move |_res: _| {
+                iter_ok(items)
+                    .for_each(move |this_future| {
+                        let results = c1.clone();
+                        this_future
+                            .then(move |x| {
+                                let mut next = results.lock().unwrap();
+                                match x {
+                                    Ok(Ok(s)) => {
+                                        next.push(Ok(s));
+                                        Ok(())
+                                    }
+                                    Ok(Err(s)) => {
+                                        next.push(Err(s));
+                                        Err(())
+                                    }
+                                    Err(e) => {
+                                        next.push(Err(e));
+                                        Err(())
+                                    }
+                                }
+                            })
+                            .map(|_e| ())
+                    })
+                    .then(move |_res| {
+                        let next = c2.clone();
+                        let reports = next.lock().unwrap();
+                        let all_valid = reports.iter().all(|x| x.is_ok());
+
+                        if all_valid {
+                            Ok(Ok(Report::EndGroup {
+                                time: Utc::now(),
+                                id: id_clone,
+                                dur: Utc::now().signed_duration_since(begin_time),
+                                reports: reports.clone(),
+                            }))
+                        } else {
+                            Ok(Err(Report::ErrorGroup {
+                                time: Utc::now(),
+                                id: id_clone,
+                                dur: Utc::now().signed_duration_since(begin_time),
+                                reports: reports.clone(),
+                            }))
                         }
                     })
-                    .map(|_e| ())
-            })
-            .then(move |_res| {
-                let next = c2.clone();
-                let reports = next.lock().unwrap();
-                let all_valid = reports.iter().all(|x| x.is_ok());
-
-                if all_valid {
-                    Ok(Ok(Report::EndGroup {
-                        time: Utc::now(),
-                        id: id_clone,
-                        reports: reports.clone(),
-                    }))
-                } else {
-                    Ok(Err(Report::ErrorGroup {
-                        time: Utc::now(),
-                        id: id_clone,
-                        reports: reports.clone(),
-                    }))
-                }
             })
     }))
 }

@@ -5,7 +5,7 @@ extern crate tokio;
 use cb2_core::exec;
 use futures::future::lazy;
 
-use ansi_term::Colour::{Blue, Green, Red, Yellow};
+use ansi_term::Colour::{Green, Red, Yellow};
 use cb2_core::input::Input;
 use cb2_core::report::Report;
 use cb2_core::task::Task;
@@ -14,16 +14,11 @@ use futures::future::Future;
 use futures::Stream;
 
 use cb2_core::options::Options;
+use cb2_core::task::Dur;
 use cb2_core::task::Status;
-use chrono::format::DelayedFormat;
-use chrono::format::StrftimeItems;
-use chrono::DateTime;
-use chrono::Utc;
 use std::env;
 use std::fmt;
 use std::process;
-use cb2_core::report::SimpleReport;
-use std::collections::HashMap;
 
 fn main() {
     env_logger::init();
@@ -92,24 +87,24 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
                             );
                         });
                     }
-                    Report::End { id, time, .. } => {
+                    Report::End { id, time, dur, .. } => {
                         flat.get(id).map(|task| {
                             let name = task.name();
                             println!(
                                 "{} {} {}",
                                 Prefix::Ok(time.format("%T").to_string()),
-                                Status::Ok,
+                                Status::Ok(Dur(dur.clone())),
                                 name
                             );
                         });
                     }
-                    Report::Error { id, time, .. } => {
+                    Report::Error { id, time, dur, .. } => {
                         flat.get(id).map(|task| {
                             let name = task.name();
                             println!(
                                 "{} {} {}",
                                 Prefix::Err(time.format("%T").to_string()),
-                                Status::Err,
+                                Status::Err(Dur(dur.clone())),
                                 name
                             );
                         });
@@ -119,8 +114,10 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
             })
             .collect();
 
-        let joined = init.join(reports).map(move |(simple_reports, reports)| {
-            println!("{}", task_tree.clone().get_tree(&simple_reports, &reports));
+        let joined = init.join(reports).map(move |(init, _reports)| match init {
+            Ok(report) | Err(report) => {
+                println!("{}", task_tree.clone().get_tree(&report.flatten()));
+            }
         });
 
         tokio::spawn(joined.map(|_: ()| ()).map_err(|_: ()| ()));
