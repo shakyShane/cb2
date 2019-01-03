@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Formatter;
 use uuid::Uuid;
+use crate::report::Report;
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum RunMode {
@@ -87,33 +88,35 @@ impl fmt::Display for Name {
     }
 }
 
-fn to_archy_nodes(group: &Vec<Task>, reports: &HashMap<String, SimpleReport>) -> Vec<Node> {
+fn to_archy_nodes(group: &Vec<Task>, simple_reports: &HashMap<String, SimpleReport>, reports: &Vec<Report>) -> Vec<Node> {
     group
         .into_iter()
         .map(|task| match task {
-            Task::Item(item) => Node::new(item_display(item, reports), vec![]),
+            Task::Item(item) => Node::new(item_display(item, simple_reports, reports), vec![]),
             Task::Group(group) => Node::new(
-                group_name(group, reports),
-                to_archy_nodes(&group.items, reports),
+                group_name(group, simple_reports, reports),
+                to_archy_nodes(&group.items, simple_reports, reports),
             ),
         })
         .collect()
 }
 
-fn item_display(item: &TaskItem, reports: &HashMap<String, SimpleReport>) -> String {
-    let status = item_status(item, reports);
+fn item_display(item: &TaskItem, simple_reports: &HashMap<String, SimpleReport>, reports: &Vec<Report>) -> String {
+    let status = item_status(item, simple_reports);
+    let dur = Report::duration_by_id(item.id.clone(), reports).unwrap_or(0 as f32);
 
     match item.name.clone() {
-        Some(name) => format!("{} {}\n{}", status, name, item.cmd,),
-        None => format!("{} {}", status, item.cmd.to_string()),
+        Some(name) => format!("{} ({}s) {}\n{}", status, dur, name, item.cmd,),
+        None => format!("{} ({}s) {}", status, dur, item.cmd.to_string()),
     }
 }
 
-fn group_name(group: &TaskGroup, reports: &HashMap<String, SimpleReport>) -> String {
-    let status = group_status(group, reports);
+fn group_name(group: &TaskGroup, simple_reports: &HashMap<String, SimpleReport>, reports: &Vec<Report>) -> String {
+    let status = group_status(group, simple_reports);
+    let dur = Report::duration_by_id(group.id.clone(), reports).unwrap_or(0 as f32);
     match group.name.clone() {
-        Some(name) => format!("{} {} {}", status, name, group.run_mode),
-        None => format!("{} {}", status, group.run_mode),
+        Some(name) => format!("{} ({}s) {} {}", status, dur, name, group.run_mode),
+        None => format!("{} ({}s) {}", status, dur, group.run_mode),
     }
 }
 
@@ -173,15 +176,15 @@ impl Task {
         flatten(self, &mut hm);
         hm
     }
-    pub fn get_tree(&self, reports: &HashMap<String, SimpleReport>) -> String {
+    pub fn get_tree(&self, simple_reports: &HashMap<String, SimpleReport>, reports: &Vec<Report>) -> String {
         match self {
-            Task::Item(item) => item_display(item, reports),
+            Task::Item(item) => item_display(item, simple_reports, reports),
             Task::Group(group) => format!(
                 "{}",
                 archy(
                     &Node::new(
-                        group_name(&group, reports),
-                        to_archy_nodes(&group.items, reports)
+                        group_name(&group, simple_reports, reports),
+                        to_archy_nodes(&group.items, simple_reports, reports)
                     ),
                     "",
                     &ArchyOpts::new()

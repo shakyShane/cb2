@@ -10,7 +10,6 @@ pub enum SimpleReport {
 
 #[derive(Debug, Clone)]
 pub enum Report {
-    Unknown,
     Started {
         id: String,
         time: DateTime<Utc>,
@@ -40,21 +39,51 @@ impl Report {
         collect(&self, &mut output);
         output
     }
-    pub fn duration_by_id(id: String, reports: Vec<Report>) {
-//        let output = reports.into_iter()
-//            .filter(move |report| {
-////                report.id == id
-//            });
-//            .filter_map(|report| {
-//                match report {
-//                    Report::Started {..} | Report::End {..} | Report::EndGroup {..} => {
-//                        Some(report)
-//                    }
-//                    _ => None
-//                }
-//            });
-
-        println!("{:?}", output);
+    pub fn id(&self) -> String {
+        match self {
+            Report::Started {id, ..}|
+            Report::EndGroup {id, ..}|
+            Report::End {id, ..}|
+            Report::Error {id, ..}|
+            Report::ErrorGroup {id, ..} => id.to_string()
+        }
+    }
+    pub fn duration_by_id(match_id: String, reports: &Vec<Report>) -> Option<f32> {
+        let start = reports.iter().find_map(|report| {
+            match report {
+                Report::Started { id, time, .. } => {
+                    if id.to_string() == match_id {
+                        Some(time)
+                    } else {
+                        None
+                    }
+                },
+                _ => None
+            }
+        });
+        let end = reports.iter().find_map(|report| {
+            match report {
+                Report::End { id, time, .. }|
+                Report::EndGroup { id, time, .. }|
+                Report::Error { id, time, .. }|
+                Report::ErrorGroup { id, time, .. } => {
+                    if id.to_string() == match_id {
+                        Some(time)
+                    } else {
+                        None
+                    }
+                },
+                _ => None
+            }
+        });
+        match (start, end) {
+            (Some(time), Some(time_end)) => {
+                println!("time={}, time_end={}", time, time_end);
+                let dur = time_end.signed_duration_since(*time);
+                Some((dur.num_milliseconds() as f32) / 1000 as f32)
+            }
+            _ => None
+        }
     }
 }
 
@@ -104,7 +133,6 @@ fn collect(report: &Report, target: &mut HashMap<String, SimpleReport>) {
                 },
             );
         }
-        Report::Unknown => unimplemented!(),
         Report::Started { .. } => { /* noop */ }
     };
 }

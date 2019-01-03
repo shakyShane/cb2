@@ -120,10 +120,7 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
             .collect();
 
         let joined = init.join(reports).map(move |(simple_reports, reports)| {
-            println!("{}", task_tree.clone().get_tree(&simple_reports));
-            println!("{:?}", Report::duration_by_id(reports));
-//            println!("{:?}", simple_reports);
-//            println!("{:?}", reports);
+            println!("{}", task_tree.clone().get_tree(&simple_reports, &reports));
         });
 
         tokio::spawn(joined.map(|_: ()| ()).map_err(|_: ()| ()));
