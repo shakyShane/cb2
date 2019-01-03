@@ -22,6 +22,8 @@ use chrono::Utc;
 use std::env;
 use std::fmt;
 use std::process;
+use cb2_core::report::SimpleReport;
+use std::collections::HashMap;
 
 fn main() {
     env_logger::init();
@@ -48,6 +50,7 @@ fn main() {
     }
 }
 
+#[derive(Debug)]
 enum Prefix {
     Started(String),
     Ok(String),
@@ -78,11 +81,11 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
         let reports = report_stream
             .inspect(move |report| {
                 match report {
-                    Report::Begin { id, time, .. } => {
+                    Report::Started { id, time, .. } => {
                         flat.get(id).map(|task| {
                             let name = task.name();
                             println!(
-                                "{} {} {} started",
+                                "{} {} {}",
                                 Prefix::Started(time.format("%T").to_string()),
                                 Status::Started,
                                 name
@@ -116,12 +119,14 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
             })
             .collect();
 
-        let main = init.map(move |simple_reports| {
+        let joined = init.join(reports).map(move |(simple_reports, reports)| {
             println!("{}", task_tree.clone().get_tree(&simple_reports));
+            println!("{:?}", Report::duration_by_id(reports));
+//            println!("{:?}", simple_reports);
+//            println!("{:?}", reports);
         });
 
-        tokio::spawn(reports.map(|_| ()).map_err(|_| ()));
-        tokio::spawn(main.map(|_| ()).map_err(|_| ()));
+        tokio::spawn(joined.map(|_: ()| ()).map_err(|_: ()| ()));
         Ok(())
     }));
 

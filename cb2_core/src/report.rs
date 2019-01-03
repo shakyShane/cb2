@@ -11,7 +11,7 @@ pub enum SimpleReport {
 #[derive(Debug, Clone)]
 pub enum Report {
     Unknown,
-    Begin {
+    Started {
         id: String,
         time: DateTime<Utc>,
     },
@@ -39,6 +39,22 @@ impl Report {
         let mut output = HashMap::new();
         collect(&self, &mut output);
         output
+    }
+    pub fn duration_by_id(id: String, reports: Vec<Report>) {
+//        let output = reports.into_iter()
+//            .filter(move |report| {
+////                report.id == id
+//            });
+//            .filter_map(|report| {
+//                match report {
+//                    Report::Started {..} | Report::End {..} | Report::EndGroup {..} => {
+//                        Some(report)
+//                    }
+//                    _ => None
+//                }
+//            });
+
+        println!("{:?}", output);
     }
 }
 
@@ -89,8 +105,13 @@ fn collect(report: &Report, target: &mut HashMap<String, SimpleReport>) {
             );
         }
         Report::Unknown => unimplemented!(),
-        Report::Begin { .. } => { /* noop */ }
+        Report::Started { .. } => { /* noop */ }
     };
+}
+
+#[test]
+fn test_duration_by_id() {
+//    let d =
 }
 
 #[test]

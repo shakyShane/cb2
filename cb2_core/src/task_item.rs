@@ -21,7 +21,7 @@ pub fn task_item(task_item: TaskItem, sender: Sender<Report>) -> FutureSig {
             tokio::spawn(
                 sender
                     .clone()
-                    .send(Report::Begin {
+                    .send(Report::Started {
                         id: id_clone.clone(),
                         time: Utc::now(),
                     })
