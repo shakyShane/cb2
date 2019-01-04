@@ -117,28 +117,26 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
         let joined = init.join(reports).map(move |(init, _reports)| match init {
             Ok(report) | Err(report) => {
                 let flat_reports = report.flatten();
-                let overall_duration = flat_reports
-                    .get(0)
-                    .map(|report| {
-
-                        let status = match report.clone() {
-                            Report::End {dur, ..}
-                            | Report::EndGroup {dur, .. } => Status::Ok(Dur(dur)),
-                            Report::Error {dur, ..} | Report::ErrorGroup {dur,..} => Status::Err(Dur(dur)),
-                            Report::Started {..} | Report::GroupStarted {..} => unreachable!()
-                        };
-
-                        match status {
-                            Status::Ok(dur) => {
-                                println!("\n\tcb2 summary: {}", status)
-                            }
-                            Status::Err(dur) => {
-                                println!("\n\tcb2 summary: {}\n", status);
-                                println!("{}", task_tree.clone().get_tree(&report.flatten()));
-                            },
-                            _ => unimplemented!()
+                let overall_duration = flat_reports.get(0).map(|report| {
+                    let status = match report.clone() {
+                        Report::End { dur, .. } | Report::EndGroup { dur, .. } => {
+                            Status::Ok(Dur(dur))
                         }
-                    });
+                        Report::Error { dur, .. } | Report::ErrorGroup { dur, .. } => {
+                            Status::Err(Dur(dur))
+                        }
+                        Report::Started { .. } | Report::GroupStarted { .. } => unreachable!(),
+                    };
+
+                    match status {
+                        Status::Ok(dur) => println!("\n\tcb2 summary: {}", status),
+                        Status::Err(dur) => {
+                            println!("\n\tcb2 summary: {}\n", status);
+                            println!("{}", task_tree.clone().get_tree(&report.flatten()));
+                        }
+                        _ => unimplemented!(),
+                    }
+                });
             }
         });
 
