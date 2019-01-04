@@ -65,7 +65,7 @@ pub enum Status {
     Unknown,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Dur(pub chrono::Duration);
 impl fmt::Display for Dur {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
