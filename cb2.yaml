@@ -1,7 +1,9 @@
 tasks:
   build:
-  - "echo 1 && sleep 1.5 && echo 2"
-  - "@ech"
+    run_mode: Series
+    tasks:
+      - "echo 1 && sleep 1 && echo 2"
+      - "KILL"
+      - "echo 1 && sleep 1 && echo 2"
+      - "echo 1 && sleep 1 && echo 2"
 
-
-  ech: "eco here"
