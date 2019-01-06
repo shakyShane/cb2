@@ -16,6 +16,7 @@ use futures::Stream;
 use cb2_core::options::Options;
 use cb2_core::task::Dur;
 use cb2_core::task::Status;
+use futures::sync::oneshot;
 use std::env;
 use std::fmt;
 use std::process;
@@ -26,7 +27,8 @@ fn main() {
         Ok(options) => {
             process::exit(match Input::read_from_file("cb2.yaml") {
                 Ok(input) => match run(input, options.tasks) {
-                    Ok((_input, _lookups)) => 0,
+                    Ok((Ok(_res), _input, _lookups)) => 0,
+                    Ok((Err(_res), _input, _lookups)) => 1,
                     Err(e) => {
                         eprintln!("{}", e);
                         1
@@ -63,15 +65,16 @@ impl fmt::Display for Prefix {
     }
 }
 
-fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), TaskError> {
+fn run(
+    input: Input,
+    names: Vec<String>,
+) -> Result<(Result<Report, Report>, Input, Vec<TaskLookup>), TaskError> {
     let lookups = select(&input, &names)?;
     let task_tree = Task::generate_series_tree(&input, &names);
     let flat = task_tree.flatten();
-    //    println!("{:#?}", flat);
-    //    let task_tree = Task::generate_par_tree(&input, &names);
 
     let (init, report_stream) = exec::exec(task_tree.clone());
-
+    let (tx, rx) = oneshot::channel();
     tokio::run(lazy(move || {
         let reports = report_stream
             .inspect(move |report| {
@@ -115,9 +118,9 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
             .collect();
 
         let joined = init.join(reports).map(move |(init, _reports)| match init {
-            Ok(report) | Err(report) => {
+            Ok(ref report) | Err(ref report) => {
                 let flat_reports = report.flatten();
-                let overall_duration = flat_reports.get(0).map(|report| {
+                flat_reports.get(0).map(|report| {
                     let status = match report.clone() {
                         Report::End { dur, .. } | Report::EndGroup { dur, .. } => {
                             Status::Ok(Dur(dur))
@@ -129,20 +132,33 @@ fn run(input: Input, names: Vec<String>) -> Result<(Input, Vec<TaskLookup>), Tas
                     };
 
                     match status {
-                        Status::Ok(dur) => println!("\n\tcb2 summary: {}", status),
-                        Status::Err(dur) => {
+                        Status::Ok(_dur) => println!("\n\tcb2 summary: {}", status),
+                        Status::Err(_dur) => {
                             println!("\n\tcb2 summary: {}\n", status);
                             println!("{}", task_tree.clone().get_tree(&report.flatten()));
                         }
                         _ => unimplemented!(),
                     }
                 });
+                init
             }
         });
 
-        tokio::spawn(joined.map(|_: ()| ()).map_err(|_: ()| ()));
+        let complete_future = joined
+            .inspect(move |report| {
+                match tx.send(report.clone()) {
+                    Ok(..) => { /* noop */ }
+                    Err(e) => {
+                        eprintln!("Error from the final send = {:?}", e);
+                    }
+                }
+            })
+            .map(|_| ())
+            .map_err(|_: ()| ());
+
+        tokio::spawn(complete_future.map(|_| ()).map_err(|_: ()| ()));
         Ok(())
     }));
-
-    Ok((input, lookups))
+    let output = rx.wait().expect("output");
+    Ok((output, input, lookups))
 }
