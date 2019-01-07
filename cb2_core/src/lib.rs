@@ -1,6 +1,5 @@
 extern crate futures;
 extern crate tokio;
-extern crate crossbeam_channel;
 
 #[macro_use]
 extern crate serde_derive;

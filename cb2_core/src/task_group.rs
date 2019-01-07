@@ -8,24 +8,22 @@ use futures::future::lazy;
 use futures::sync::mpsc::Sender;
 use futures::Future;
 use futures::Sink;
-use crate::exec::Inputs;
 
-pub fn task_group(group: TaskGroup, sender: Sender<Report>, inputs: Inputs) -> FutureSig {
+pub fn task_group(group: TaskGroup, sender: Sender<Report>) -> FutureSig {
     let id_clone = group.id.clone();
     let begin_clone = sender.clone();
     Box::new(lazy(move || {
         let items = group.items.into_iter().map(move |item| match item {
-            Task::Item(item) => task_item(item, sender.clone(), inputs.clone()),
+            Task::Item(item) => task_item(item, sender.clone()),
             Task::Group(group) => match group.run_mode {
-                RunMode::Series => task_seq(group, sender.clone(), inputs.clone()),
-                RunMode::Parallel => task_group(group, sender.clone(), inputs.clone()),
+                RunMode::Series => task_seq(group, sender.clone()),
+                RunMode::Parallel => task_group(group, sender.clone()),
             },
         });
 
         let begin_time = Utc::now();
 
         begin_clone
-            .clone()
             .send(Report::GroupStarted {
                 id: id_clone.clone(),
                 time: begin_time.clone(),

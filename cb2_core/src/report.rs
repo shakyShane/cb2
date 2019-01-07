@@ -116,7 +116,7 @@ fn collect_vec(report: &Report, target: &mut Vec<Report>) {
         } => {
             target.push(report.clone());
             reports.iter().for_each(|result| match result {
-                Ok(report) | Err(report) => collect_vec(&report.clone(), target),
+                Ok(report) | Err(report) => collect_vec(&report, target),
             })
         }
         Report::ErrorGroup {
@@ -128,7 +128,7 @@ fn collect_vec(report: &Report, target: &mut Vec<Report>) {
         } => {
             target.push(report.clone());
             reports.iter().for_each(|result| match result {
-                Ok(report) | Err(report) => collect_vec(&report.clone(), target),
+                Ok(report) | Err(report) => collect_vec(&report, target),
             })
         }
         Report::End { id: _, time: _, .. } => {

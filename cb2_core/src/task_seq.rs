@@ -8,13 +8,10 @@ use chrono::Utc;
 use futures::future::lazy;
 use futures::stream::iter_ok;
 use futures::sync::mpsc::Sender;
-use futures::Future;
-use futures::Sink;
-use futures::Stream;
+use futures::{Future, Sink, Stream};
 use std::sync::{Arc, Mutex};
-use crate::exec::Inputs;
 
-pub fn task_seq(group: TaskGroup, sender: Sender<Report>, inputs: Inputs) -> FutureSig {
+pub fn task_seq(group: TaskGroup, sender: Sender<Report>) -> FutureSig {
     let id_clone = group.id.clone();
     let begin_clone = sender.clone();
 
@@ -24,10 +21,10 @@ pub fn task_seq(group: TaskGroup, sender: Sender<Report>, inputs: Inputs) -> Fut
         let c2 = track.clone();
 
         let items = group.items.into_iter().map(move |item| match item {
-            Task::Item(item) => task_item(item, sender.clone(), inputs.clone()),
+            Task::Item(item) => task_item(item, sender.clone()),
             Task::Group(group) => match group.run_mode {
-                RunMode::Series => task_seq(group, sender.clone(), inputs.clone()),
-                RunMode::Parallel => task_group(group, sender.clone(), inputs.clone()),
+                RunMode::Series => task_seq(group, sender.clone()),
+                RunMode::Parallel => task_group(group, sender.clone()),
             },
         });
 
