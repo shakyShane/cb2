@@ -36,31 +36,29 @@ pub fn task_seq(group: TaskGroup, sender: Sender<Report>) -> FutureSig {
                 id: id_clone.clone(),
                 time: begin_time.clone(),
             })
-            .then(move |_res: _| {
+            .then(move |_| {
                 iter_ok(items)
                     .for_each(move |this_future| {
                         let results = c1.clone();
-                        this_future
-                            .then(move |x| {
-                                let mut next = results.lock().unwrap();
-                                match x {
-                                    Ok(Ok(s)) => {
-                                        next.push(Ok(s));
-                                        Ok(())
-                                    }
-                                    Ok(Err(s)) => {
-                                        next.push(Err(s));
-                                        Err(())
-                                    }
-                                    Err(e) => {
-                                        next.push(Err(e));
-                                        Err(())
-                                    }
+                        this_future.then(move |x| {
+                            let mut next = results.lock().unwrap();
+                            match x {
+                                Ok(Ok(s)) => {
+                                    next.push(Ok(s));
+                                    Ok(())
                                 }
-                            })
-                            .map(|_e| ())
+                                Ok(Err(s)) => {
+                                    next.push(Err(s));
+                                    Err(())
+                                }
+                                Err(e) => {
+                                    next.push(Err(e));
+                                    Err(())
+                                }
+                            }
+                        })
                     })
-                    .then(move |_res| {
+                    .then(move |_| {
                         let next = c2.clone();
                         let reports = next.lock().unwrap();
                         let all_valid = reports.iter().all(|x| x.is_ok());
@@ -70,14 +68,14 @@ pub fn task_seq(group: TaskGroup, sender: Sender<Report>) -> FutureSig {
                                 time: Utc::now(),
                                 id: id_clone,
                                 dur: Utc::now().signed_duration_since(begin_time),
-                                reports: reports.clone(),
+                                reports: reports.to_vec(),
                             }))
                         } else {
                             Ok(Err(Report::ErrorGroup {
                                 time: Utc::now(),
                                 id: id_clone,
                                 dur: Utc::now().signed_duration_since(begin_time),
-                                reports: reports.clone(),
+                                reports: reports.to_vec(),
                             }))
                         }
                     })
