@@ -1,9 +1,9 @@
 tasks:
   build:
-    run_mode: Series
+    run_mode: Parallel
     tasks:
       - "echo 1 && sleep 1 && echo 2"
+      - "echo 1 && sleep 1 && echo 2"
+      - "echo 1 && sleep 1 && echo 2"
       - "KILL"
-      - "echo 1 && sleep 1 && echo 2"
-      - "echo 1 && sleep 1 && echo 2"
 
