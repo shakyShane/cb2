@@ -115,8 +115,8 @@ fn main() {
                         kill_msg_sender_2.send("DIE!".to_string()),
                     ]
                 )
-                    .map(|v| ())
-                    .map_err(|v| ())
+                    .map(|m| println!("All messages sent = {:?}", m))
+                    .map_err(|e| println!("kill message failure e = {}", e))
             }));
 
             futures::collect(items)
